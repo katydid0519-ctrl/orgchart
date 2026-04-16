@@ -63,6 +63,8 @@ button,textarea,select{font:inherit;}button{white-space:nowrap;}
 .toolbar-btn{min-height:30px;padding:7px 11px;background:#fff;border:1px solid rgba(181,171,154,.85);color:var(--text);display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;line-height:1;}
 .toolbar-btn.is-success{border-color:#9ad7b2;color:var(--success);background:var(--success-soft);}
 .toolbar-btn:disabled{opacity:.55;cursor:not-allowed;}
+#pdfBtn{border-color:rgba(220,38,38,.35);color:#dc2626;}
+#pdfBtn:hover{border-color:#dc2626;background:#fff5f5;color:#dc2626;}
 .level-panel{border:1px solid rgba(181,171,154,.6);border-radius:12px;background:#fffdf9;overflow:hidden;}
 .custom-grid{display:grid;grid-template-columns:1fr;gap:5px;}
 .control-field{display:grid;grid-template-columns:82px minmax(0,1fr);align-items:center;gap:6px;padding:6px 8px;border:1px solid rgba(181,171,154,.45);border-radius:10px;background:#fff;}
@@ -261,6 +263,10 @@ button,textarea,select{font:inherit;}button{white-space:nowrap;}
         <button class="toolbar-btn" type="button" id="sheetCopyBtn"><strong>Excel</strong></button>
         <button class="toolbar-btn" type="button" id="imageCopyBtn"><strong>이미지</strong></button>
         <button class="toolbar-btn" type="button" id="pngBtn"><span>PNG</span><strong>저장</strong></button>
+        <button class="toolbar-btn" type="button" id="pdfBtn">
+          <svg width="12" height="13" viewBox="0 0 12 13" fill="none" style="flex-shrink:0"><path d="M2 1h6l3 3v8a1 1 0 01-1 1H2a1 1 0 01-1-1V2a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 1v3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.5 7.5h5M3.5 9.5h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <strong>PDF</strong>
+        </button>
         <button class="toolbar-btn" type="button" id="fullBackupBtn" style="border-color:rgba(36,87,214,.45);color:var(--accent);">
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="flex-shrink:0"><path d="M6.5 1v7M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M1.5 9.5v1A1.5 1.5 0 003 12h7a1.5 1.5 0 001.5-1.5v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           <strong>전체 백업</strong>
@@ -840,7 +846,7 @@ function bandPath(x,y,w,h,rad) {
   return ['M',r(x+rv),r(y),'H',r(x+w-rv),'Q',r(x+w),r(y),r(x+w),r(y+rv),'V',r(y+h),'H',r(x),'V',r(y+rv),'Q',r(x),r(y),r(x+rv),r(y),'Z'].join(' ');
 }
 
-function nodeMarkup(node) {
+function nodeMarkup(node, exportMode) {
   const s = node.assistant ? assistStyle() : levelStyle(node.depth);
   // 개별 색상 오버라이드
   const nc = nodeColorMap.get(node._id);
@@ -852,15 +858,22 @@ function nodeMarkup(node) {
   // 노드 높이에 비례해서 헤더/디테일 영역 계산
   const totalH = node.height || layout.nodeH;
   const ratio = totalH / layout.nodeH;
-  const hh = Math.round(layout.headerH * ratio);
+  // 헤더 높이는 최대 totalH의 60%로 제한
+  const hh = Math.min(Math.round(layout.headerH * ratio), Math.floor(totalH * 0.6));
   const dh = totalH - hh;
   const fp = FONT_PRESETS[theme.fontKey];
   const rad = theme.radius;
+  // clipPath ID (노드별 고유)
+  const clipId = 'nc'+node._id;
+  const clip = '<clipPath id="'+clipId+'"><rect x="'+r(node.x)+'" y="'+r(node.y)+'" width="'+r(node.width)+'" height="'+r(totalH)+'" rx="'+rad+'"/></clipPath>';
 
   const outer = '<rect x="'+r(node.x)+'" y="'+r(node.y)+'" width="'+r(node.width)+'" height="'+r(totalH)+'" rx="'+rad+'" fill="'+fillBody+'" stroke="'+strokeC+'" stroke-width="1.5"/>';
-  const top   = '<path d="'+bandPath(node.x,node.y,node.width,hh,rad)+'" fill="'+fillHeader+'" stroke="'+strokeC+'" stroke-width="1.5"/>';
+  // top: clipPath로 노드 바깥 넘치지 않게 클리핑
+  const top   = '<rect clip-path="url(#'+clipId+')" x="'+r(node.x)+'" y="'+r(node.y)+'" width="'+r(node.width)+'" height="'+r(hh)+'" fill="'+fillHeader+'"/>';
+  const topBorder = '<line x1="'+r(node.x)+'" y1="'+r(node.y+hh)+'" x2="'+r(node.x+node.width)+'" y2="'+r(node.y+hh)+'" stroke="'+strokeC+'" stroke-width="1"/>';
+  const outerBorder = '<rect x="'+r(node.x)+'" y="'+r(node.y)+'" width="'+r(node.width)+'" height="'+r(totalH)+'" rx="'+rad+'" fill="none" stroke="'+strokeC+'" stroke-width="1.5"/>';
   const dy = node.y+hh, dx = node.x+node.width/2;
-  const divs = '<line x1="'+r(node.x)+'" y1="'+r(dy)+'" x2="'+r(node.x+node.width)+'" y2="'+r(dy)+'" stroke="'+strokeC+'" stroke-width="1"/>'+
+  const divs = topBorder+
     '<line x1="'+r(dx)+'" y1="'+r(dy)+'" x2="'+r(dx)+'" y2="'+r(node.y+totalH)+'" stroke="'+strokeC+'" stroke-width="1"/>';
   const fs = node.depth===0?14:13;
   const ht = '<text x="'+r(node.centerX)+'" y="'+r(node.y+hh/2+4)+'" text-anchor="middle" font-size="'+fs+'" font-weight="700" fill="'+textC+'" font-family="'+ex(fp)+'">'+ex(node.name)+'</text>';
@@ -869,14 +882,19 @@ function nodeMarkup(node) {
   const lt = dh >= 14 ? '<text x="'+r(node.x+node.width/4)+'" y="'+r(detailY)+'" text-anchor="middle" font-size="11" font-weight="600" fill="'+bodyTextC+'" font-family="'+ex(fp)+'">'+ex(node.title||'')+'</text>' : '';
   const rt = dh >= 14 ? '<text x="'+r(node.x+node.width*0.75)+'" y="'+r(detailY)+'" text-anchor="middle" font-size="11" font-weight="600" fill="'+bodyTextC+'" font-family="'+ex(fp)+'">'+ex(node.person||'')+'</text>' : '';
 
-  // 클릭 히트 오버레이 (투명 rect) — node-grp으로 감싸서 hover 효과도 적용
+  // 내보내기 모드: 히트 오버레이 제거 (파란색 번짐 방지)
+  if (exportMode) {
+    return '<defs>'+clip+'</defs><g>'+outer+top+outerBorder+divs+ht+lt+rt+'</g>';
+  }
+
+  // 화면 표시: 클릭 히트 오버레이 포함
   const onclk = 'nodeClick(event,\''+node._id+'\',\''+ex(node.name)+'\')';
   const overlay = '<rect class="node-hit-overlay" x="'+r(node.x)+'" y="'+r(node.y)+'" width="'+r(node.width)+'" height="'+r(totalH)+'" rx="'+rad+'"'
     +' fill="rgba(36,87,214,.10)" stroke="var(--accent)" stroke-width="2" pointer-events="none"/>';
   const hitRect = '<rect x="'+r(node.x)+'" y="'+r(node.y)+'" width="'+r(node.width)+'" height="'+r(totalH)+'"'
     +' rx="'+rad+'" fill="transparent" stroke="none" cursor="pointer" onclick="'+onclk+'"/>';
 
-  return '<g class="node-grp">'+outer+top+divs+ht+lt+rt+overlay+hitRect+'</g>';
+  return '<defs>'+clip+'</defs><g class="node-grp">'+outer+top+outerBorder+divs+ht+lt+rt+overlay+hitRect+'</g>';
 }
 
 // ═══════════════════════════════════════════════════════
@@ -894,16 +912,26 @@ function segGroup(x1,y1,x2,y2, nodeId, nodeName, type, strokeAttr) {
     + '</g>';
 }
 
-function buildSvg(tree, w, h) {
+function buildSvg(tree, w, h, exportMode) {
   const segs  = [];   // 클릭 가능한 선 그룹 (seg-grp)
   const aSegs = [];   // 보조 노드 연결선 그룹
   const nodes = [];
+  const nodeDefs = [];  // clipPath 등 defs 분리
 
   const strokeAttr = 'stroke="'+theme.connector+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
 
   const traverse = (node) => {
-    nodes.push(nodeMarkup(node));
-    node.assistants.forEach(a => nodes.push(nodeMarkup(a)));
+    const nm = nodeMarkup(node, exportMode);
+    // defs 분리: <defs>...</defs> 추출
+    const defsMatch = nm.match(/^<defs>([\s\S]*?)<\/defs>/);
+    if (defsMatch) { nodeDefs.push(defsMatch[1]); nodes.push(nm.slice(defsMatch[0].length)); }
+    else { nodes.push(nm); }
+    node.assistants.forEach(a => {
+      const am = nodeMarkup(a, exportMode);
+      const adm = am.match(/^<defs>([\s\S]*?)<\/defs>/);
+      if (adm) { nodeDefs.push(adm[1]); nodes.push(am.slice(adm[0].length)); }
+      else { nodes.push(am); }
+    });
 
     if (node.children.length || node.assistants.length) {
       const pb  = node.y + node.height;
@@ -967,8 +995,11 @@ function buildSvg(tree, w, h) {
   traverse(tree);
 
   return [
-    '<defs><filter id="ns" x="-30%" y="-30%" width="160%" height="180%">',
-    '<feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#8b7c63" flood-opacity="0.12"/></filter></defs>',
+    '<defs>',
+    '<filter id="ns" x="-30%" y="-30%" width="160%" height="180%">',
+    '<feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#8b7c63" flood-opacity="0.12"/></filter>',
+    nodeDefs.join(''),
+    '</defs>',
     '<rect x="0" y="0" width="'+w+'" height="'+h+'" fill="transparent"/>',
     '<g>'+aSegs.join('')+'</g>',
     '<g>'+segs.join('')+'</g>',
@@ -1779,28 +1810,104 @@ async function busy(btn, fn) {
   finally { btn.disabled=false; btn.innerHTML=orig; }
 }
 
+// exportMode=true → 히트 오버레이 없는 클린 SVG
 function exportSvg() {
-  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+currentLayout.width+'" height="'+currentLayout.height+'" viewBox="0 0 '+currentLayout.width+' '+currentLayout.height+'"><rect width="100%" height="100%" fill="#ffffff"/>'+buildSvg(currentTree,currentLayout.width,currentLayout.height)+'</svg>';
+  const bgColor = theme.canvas || '#ffffff';
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+currentLayout.width+'" height="'+currentLayout.height
+    +'" viewBox="0 0 '+currentLayout.width+' '+currentLayout.height
+    +'"><rect width="100%" height="100%" fill="'+bgColor+'"/>'
+    +buildSvg(currentTree, currentLayout.width, currentLayout.height, true)+'</svg>';
 }
 
+// SVG → Canvas (고화질: scale 4x 기본)
 async function svgToCanvas(scale) {
-  const blob = new Blob([exportSvg()],{type:'image/svg+xml;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
+  scale = scale || 4;
+  const svgStr = exportSvg();
+  // SVG에 명시적 xmlns 속성 보장
+  const blob = new Blob([svgStr], {type:'image/svg+xml;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
   try {
-    const img = await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('이미지 변환 실패'));i.src=url;});
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.onload  = () => res(i);
+      i.onerror = () => rej(new Error('이미지 변환 실패'));
+      i.src = url;
+    });
     const c = document.createElement('canvas');
-    c.width = Math.ceil(currentLayout.width*scale); c.height = Math.ceil(currentLayout.height*scale);
-    const ctx = c.getContext('2d'); ctx.scale(scale,scale); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,currentLayout.width,currentLayout.height); ctx.drawImage(img,0,0,currentLayout.width,currentLayout.height);
+    c.width  = Math.ceil(currentLayout.width  * scale);
+    c.height = Math.ceil(currentLayout.height * scale);
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = theme.canvas || '#ffffff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0, currentLayout.width, currentLayout.height);
     return c;
-  } finally { URL.revokeObjectURL(url); }
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 function dlBlob(blob,name) { const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u); }
 
 async function copySmartArt() { if(!currentTree){showToast('먼저 조직도를 생성해 주세요.');return;} const ok=await busy(document.getElementById('smartArtCopyBtn'),async()=>await writeText(toSmartArt(currentTree).replace(/\n/g,'\r\n'))); if(ok){document.getElementById('smartArtCopyBtn').classList.add('is-success');showToast('SmartArt 텍스트가 복사되었습니다.');setTimeout(()=>document.getElementById('smartArtCopyBtn').classList.remove('is-success'),1800);} }
 async function copySheet() { if(!currentTree){showToast('먼저 조직도를 생성해 주세요.');return;} const rows=toSheetRows(currentTree); const ok=await busy(document.getElementById('sheetCopyBtn'),async()=>await writeClip({'text/plain':sheetText(rows),'text/html':sheetHtml(rows)})); if(ok){document.getElementById('sheetCopyBtn').classList.add('is-success');showToast('Excel 데이터가 복사되었습니다.');setTimeout(()=>document.getElementById('sheetCopyBtn').classList.remove('is-success'),1800);} }
-async function copyImage() { if(!currentTree){showToast('먼저 조직도를 생성해 주세요.');return;} const ok=await busy(document.getElementById('imageCopyBtn'),async()=>{const c=await svgToCanvas(2);const b=await new Promise(r=>c.toBlob(r,'image/png'));if(!b)throw new Error('PNG 생성 실패');if(navigator.clipboard&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);}else{dlBlob(b,'조직도.png');showToast('클립보드 권한 없음 → PNG 저장됨');}});if(ok){document.getElementById('imageCopyBtn').classList.add('is-success');showToast('이미지가 복사되었습니다.');setTimeout(()=>document.getElementById('imageCopyBtn').classList.remove('is-success'),1800);} }
-async function downloadPng() { if(!currentTree){showToast('먼저 조직도를 생성해 주세요.');return;} const ok=await busy(document.getElementById('pngBtn'),async()=>{const c=await svgToCanvas(2);const b=await new Promise(r=>c.toBlob(r,'image/png'));if(!b)throw new Error('PNG 생성 실패');dlBlob(b,'조직도.png');});if(ok){document.getElementById('pngBtn').classList.add('is-success');showToast('PNG 파일이 저장되었습니다.');setTimeout(()=>document.getElementById('pngBtn').classList.remove('is-success'),1800);} }
+async function copyImage() { if(!currentTree){showToast('먼저 조직도를 생성해 주세요.');return;} const ok=await busy(document.getElementById('imageCopyBtn'),async()=>{const c=await svgToCanvas(3);const b=await new Promise(res=>c.toBlob(res,'image/png'));if(!b)throw new Error('PNG 생성 실패');if(navigator.clipboard&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);}else{dlBlob(b,'조직도.png');showToast('클립보드 권한 없음 → PNG 저장됨');}});if(ok){document.getElementById('imageCopyBtn').classList.add('is-success');showToast('이미지가 복사되었습니다.');setTimeout(()=>document.getElementById('imageCopyBtn').classList.remove('is-success'),1800);} }
+
+// 고화질 PNG 저장 (4x = 약 4배 해상도)
+async function downloadPng() {
+  if (!currentTree) { showToast('먼저 조직도를 생성해 주세요.'); return; }
+  const ok = await busy(document.getElementById('pngBtn'), async () => {
+    const c = await svgToCanvas(4);
+    const b = await new Promise(res => c.toBlob(res, 'image/png'));
+    if (!b) throw new Error('PNG 생성 실패');
+    dlBlob(b, '조직도_고화질.png');
+  });
+  if (ok) {
+    document.getElementById('pngBtn').classList.add('is-success');
+    showToast('고화질 PNG가 저장되었습니다.');
+    setTimeout(() => document.getElementById('pngBtn').classList.remove('is-success'), 1800);
+  }
+}
+
+// PDF 저장 — Canvas → jsPDF
+async function downloadPdf() {
+  if (!currentTree) { showToast('먼저 조직도를 생성해 주세요.'); return; }
+  const btn = document.getElementById('pdfBtn');
+  const ok  = await busy(btn, async () => {
+    // jsPDF 동적 로드 (CDN)
+    if (!window.jspdf) {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+        s.onload = res; s.onerror = () => rej(new Error('jsPDF 로드 실패'));
+        document.head.appendChild(s);
+      });
+    }
+    const { jsPDF } = window.jspdf;
+
+    // 3x 해상도 Canvas (PNG로 선명하게)
+    const scale  = 3;
+    const canvas = await svgToCanvas(scale);
+    const imgData = canvas.toDataURL('image/png');
+
+    // 조직도 실제 크기(px → mm, 96dpi 기준 1px = 0.2646mm)
+    const PX2MM  = 0.2646;
+    const docW   = currentLayout.width  * PX2MM;
+    const docH   = currentLayout.height * PX2MM;
+
+    const orient = docW >= docH ? 'l' : 'p';
+    const pdf = new jsPDF({ orientation: orient, unit: 'mm', format: [docW, docH] });
+    pdf.addImage(imgData, 'PNG', 0, 0, docW, docH, '', 'FAST');
+    pdf.save('조직도.pdf');
+  });
+  if (ok) {
+    btn.classList.add('is-success');
+    showToast('PDF 파일이 저장되었습니다.');
+    setTimeout(() => btn.classList.remove('is-success'), 1800);
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 // LEVEL SIZE UI
@@ -2039,6 +2146,7 @@ function init() {
   document.getElementById('sheetCopyBtn').addEventListener('click', copySheet);
   document.getElementById('imageCopyBtn').addEventListener('click', copyImage);
   document.getElementById('pngBtn').addEventListener('click', downloadPng);
+  document.getElementById('pdfBtn').addEventListener('click', downloadPdf);
 
   // 전체 백업/복구
   document.getElementById('fullBackupBtn').addEventListener('click', openFullBackupModal);
