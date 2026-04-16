@@ -1,0 +1,2182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>조직도 생성기</title>
+<style>
+:root{
+  --bg:#f5f1e8;--panel:#fffdf8;--panel-2:#f8f4ec;--text:#1f2937;--muted:#6b7280;
+  --accent:#2457d6;--accent-soft:#e8efff;--success:#18804b;--success-soft:#edf9f1;
+  --shadow:0 12px 30px rgba(76,58,24,.08);
+  --app-font:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  --canvas-fill-1:rgba(255,255,255,.82);--canvas-fill-2:rgba(255,255,255,.92);--grid-color:rgba(0,0,0,.02);
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{margin:0;font-family:var(--app-font);font-size:13px;color:var(--text);
+  background:radial-gradient(circle at top left,rgba(255,255,255,.95),transparent 28%),linear-gradient(180deg,#f8f5ee 0%,#f1ecdf 100%);}
+button,textarea,select{font:inherit;}button{white-space:nowrap;}
+.app-shell{min-height:100%;display:grid;grid-template-columns:270px minmax(0,1fr) 280px;transition:grid-template-columns .22s ease;}
+.app-shell.sidebar-wide{grid-template-columns:540px minmax(0,1fr) 280px;}
+.sidebar{border-right:1px solid rgba(181,171,154,.45);background:linear-gradient(180deg,rgba(255,255,255,.76),rgba(255,250,242,.94));padding:16px 14px;display:flex;flex-direction:column;gap:12px;position:relative;z-index:2;}
+.rightbar{border-left:1px solid rgba(181,171,154,.45);background:linear-gradient(180deg,rgba(255,255,255,1),rgba(255,250,242,1));padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto;position:relative;z-index:3;box-shadow:-10px 0 24px rgba(93,77,45,.08);}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-mark{width:34px;height:34px;border-radius:12px;background:linear-gradient(145deg,#ffffff,#ebf1ff);border:1px solid rgba(36,87,214,.18);display:grid;place-items:center;box-shadow:var(--shadow);}
+.brand-copy h1{margin:0;font-size:18px;line-height:1.2;white-space:nowrap;}
+.sidebar-toggle{margin-left:auto;border:1px solid rgba(181,171,154,.75);background:#fff;color:var(--text);border-radius:10px;min-width:48px;height:28px;padding:0 9px;font-size:11px;font-weight:700;cursor:pointer;}
+.sidebar-toggle:hover{border-color:var(--accent);color:var(--accent);}
+.panel{background:rgba(255,253,248,.92);border:1px solid rgba(181,171,154,.4);border-radius:16px;padding:12px;box-shadow:var(--shadow);}
+.panel h2{margin:0 0 8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8c7f69;}
+.format-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
+.format-btn{border:1px solid rgba(181,171,154,.7);background:#fff;border-radius:10px;padding:8px 10px;text-align:left;cursor:pointer;transition:.18s ease;display:flex;flex-direction:column;gap:4px;}
+.format-btn strong{font-size:12px;white-space:nowrap;}
+.format-btn:hover,.format-btn.active{border-color:var(--accent);background:var(--accent-soft);transform:translateY(-1px);}
+.input-wrap{display:flex;flex-direction:column;gap:8px;min-height:0;flex:1;}
+.textarea-tools{display:flex;flex-direction:column;align-items:flex-start;gap:4px;font-size:11px;color:var(--muted);}
+.input-title-row{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.mini-actions{display:flex;align-items:center;gap:5px;}
+.mini-btn{border:1px solid rgba(181,171,154,.75);background:#fff;color:var(--text);border-radius:8px;padding:4px 7px;font-size:11px;font-weight:700;cursor:pointer;}
+.mini-btn:hover{border-color:var(--accent);color:var(--accent);}
+#inputText{width:100%;min-height:190px;flex:1;resize:none;border-radius:14px;border:1px solid rgba(181,171,154,.8);background:#fffdf9;padding:10px 12px;font-size:12px;line-height:1.55;color:var(--text);outline:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.8);}
+#inputText:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(36,87,214,.12);}
+.error-box{display:none;border-radius:14px;padding:12px 14px;background:#fff2f2;border:1px solid #f2c7c7;color:#b42318;font-size:13px;line-height:1.6;}
+.action-row{display:flex;gap:6px;flex-wrap:wrap;}
+.primary-btn,.secondary-btn,.toolbar-btn{border:none;border-radius:11px;cursor:pointer;transition:.18s ease;}
+.primary-btn{flex:1;padding:9px 10px;background:linear-gradient(180deg,#2f65eb,#1d4ed8);color:#fff;font-size:12px;font-weight:700;box-shadow:0 10px 18px rgba(29,78,216,.18);}
+.primary-btn:hover{transform:translateY(-1px);}
+.secondary-btn{padding:9px 10px;background:#fff;border:1px solid rgba(181,171,154,.8);color:var(--text);font-size:12px;font-weight:600;}
+.secondary-btn:hover,.toolbar-btn:hover{border-color:var(--accent);color:var(--accent);}
+.workspace{min-width:0;display:grid;grid-template-rows:auto auto minmax(0,1fr);overflow:hidden;position:relative;z-index:1;}
+.workspace-head{padding:16px 20px 10px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;}
+.workspace-head h2{margin:0;font-size:24px;line-height:1.15;white-space:nowrap;}
+.status-grid{display:grid;grid-template-columns:repeat(3,minmax(74px,1fr));gap:8px;min-width:260px;}
+.status-card{background:rgba(255,253,248,.84);border:1px solid rgba(181,171,154,.45);border-radius:14px;padding:8px 10px;box-shadow:var(--shadow);}
+.status-card span{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;white-space:nowrap;}
+.status-card strong{font-size:15px;white-space:nowrap;}
+.toolbar{margin:0 20px;padding:10px 12px;border-radius:16px;background:rgba(255,253,248,.9);border:1px solid rgba(181,171,154,.45);box-shadow:var(--shadow);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;}
+.toolbar-left{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.zoom-group{display:flex;align-items:center;gap:8px;min-width:190px;}
+.zoom-range{width:132px;accent-color:var(--accent);cursor:pointer;}
+.zoom-value{width:42px;text-align:right;font-size:12px;color:var(--muted);white-space:nowrap;}
+.toolbar-actions{display:flex;flex-wrap:wrap;gap:6px;}
+.toolbar-btn{min-height:30px;padding:7px 11px;background:#fff;border:1px solid rgba(181,171,154,.85);color:var(--text);display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;line-height:1;}
+.toolbar-btn.is-success{border-color:#9ad7b2;color:var(--success);background:var(--success-soft);}
+.toolbar-btn:disabled{opacity:.55;cursor:not-allowed;}
+.level-panel{border:1px solid rgba(181,171,154,.6);border-radius:12px;background:#fffdf9;overflow:hidden;}
+.custom-grid{display:grid;grid-template-columns:1fr;gap:5px;}
+.control-field{display:grid;grid-template-columns:82px minmax(0,1fr);align-items:center;gap:6px;padding:6px 8px;border:1px solid rgba(181,171,154,.45);border-radius:10px;background:#fff;}
+.control-field strong{font-size:11px;color:var(--text);white-space:nowrap;}
+.control-field input[type="color"],.control-field select{height:28px;border-radius:8px;border:1px solid rgba(181,171,154,.8);background:#fff;padding:0 10px;color:var(--text);}
+.control-field input[type="color"]{width:38px;min-width:38px;padding:3px;justify-self:end;}
+.color-row{display:flex;align-items:center;justify-content:flex-end;}
+.theme-legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.legend-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:999px;background:#fff;border:1px solid rgba(181,171,154,.5);font-size:11px;color:var(--text);white-space:nowrap;}
+.legend-dot{width:10px;height:10px;border-radius:999px;background:#ddd;border:1px solid rgba(0,0,0,.08);}
+.legend-line{width:18px;height:4px;border-radius:999px;background:#ddd;}
+.range-grid{margin-top:6px;display:grid;grid-template-columns:1fr;gap:5px;}
+.range-field{display:grid;grid-template-columns:72px 1fr 52px;align-items:center;gap:6px;}
+.range-field span{font-size:11px;color:var(--muted);white-space:nowrap;}
+.range-field input[type="range"]{width:100%;accent-color:var(--accent);}
+.range-num{width:100%;height:24px;border:1px solid rgba(181,171,154,.75);border-radius:6px;background:#fff;padding:0 4px;font-size:11px;font-weight:700;color:var(--text);text-align:right;font-family:inherit;}
+.range-num:focus{outline:none;border-color:var(--accent);background:#f5f8ff;}
+.level-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;background:rgba(245,241,232,.7);border-bottom:1px solid rgba(181,171,154,.45);font-size:11px;color:var(--muted);}
+.level-panel-head strong{color:var(--text);}
+.level-filter{display:flex;align-items:center;gap:4px;}
+.level-filter-btn{border:1px solid rgba(181,171,154,.75);background:#fff;color:var(--muted);border-radius:999px;min-width:28px;height:22px;padding:0 7px;font-size:10px;font-weight:700;cursor:pointer;}
+.level-filter-btn.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);}
+.level-list{max-height:96px;overflow:auto;padding:7px 10px;display:flex;flex-direction:column;gap:4px;}
+.level-item{display:flex;align-items:center;gap:6px;min-height:22px;border-radius:8px;padding:4px 6px;background:rgba(248,244,236,.65);}
+.level-badge{flex:0 0 auto;min-width:30px;padding:2px 6px;border-radius:999px;background:#eef2ff;color:#2446a6;font-size:10px;font-weight:700;text-align:center;}
+.level-label{min-width:0;font-size:11px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.level-empty{color:var(--muted);font-size:11px;line-height:1.6;}
+.smartart-preview{width:100%;min-height:62px;resize:none;border:none;border-top:1px solid rgba(181,171,154,.45);background:#fffdf9;padding:9px 11px;font-size:11px;line-height:1.45;color:var(--text);font-family:"Consolas","Courier New",monospace;}
+.canvas-wrap{min-height:0;padding:12px 20px 20px;overflow:hidden;}
+.canvas-panel{position:relative;height:100%;min-height:420px;overflow:auto;border-radius:20px;border:1px solid rgba(181,171,154,.45);
+  background:linear-gradient(var(--canvas-fill-1),var(--canvas-fill-2)),linear-gradient(90deg,var(--grid-color) 1px,transparent 1px),linear-gradient(180deg,var(--grid-color) 1px,transparent 1px);
+  background-size:auto,32px 32px,32px 32px;box-shadow:var(--shadow);isolation:isolate;cursor:grab;user-select:none;}
+.canvas-panel.is-dragging{cursor:grabbing;}
+.empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;color:var(--muted);padding:24px;}
+#chartFrame{display:none;width:max-content;min-width:max-content;min-height:max-content;margin:0 auto;padding:36px;}
+#chartSvg{display:block;overflow:visible;max-width:none;}
+/* 가지 히트 영역 */
+.branch-hit{cursor:pointer;stroke:transparent;stroke-width:18;}
+.branch-hit:hover~.branch-vis{stroke:var(--accent);}
+/* SVG 가지선 호버 그룹 */
+.seg-grp { cursor: pointer; }
+.seg-vis { transition: stroke .1s, stroke-width .1s; }
+.seg-grp:hover .seg-vis {
+  stroke: var(--accent) !important;
+  stroke-width: 3.5px !important;
+}
+/* 노드 히트 그룹 */
+.node-grp { cursor: pointer; }
+.node-grp:hover .node-hit-overlay { opacity: 1; }
+.node-hit-overlay { opacity: 0; transition: opacity .15s; }
+/* 팝업 타입 배지 */
+.bp-type-badge {
+  display:inline-block;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:700;
+  background:var(--accent-soft);color:var(--accent);border:1px solid rgba(36,87,214,.2);
+  white-space:nowrap;
+}
+/* 가지 팝업 */
+#branchPopup{position:fixed;display:none;background:#fffdf8;border:1px solid rgba(181,171,154,.55);border-radius:14px;padding:14px 16px;box-shadow:0 12px 32px rgba(0,0,0,.18);z-index:900;min-width:260px;}
+#branchPopup.show{display:block;}
+/* 노드 색상 팝업 */
+#nodePopup{position:fixed;display:none;background:#fffdf8;border:1px solid rgba(181,171,154,.55);border-radius:14px;padding:14px 16px;box-shadow:0 12px 32px rgba(0,0,0,.18);z-index:901;min-width:230px;}
+#nodePopup.show{display:block;}
+.np-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.np-title{font-size:12px;font-weight:700;color:var(--text);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.np-close{border:none;background:none;font-size:20px;line-height:1;cursor:pointer;color:var(--muted);padding:0;}
+.np-close:hover{color:var(--text);}
+.np-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid rgba(181,171,154,.2);}
+.np-row:last-of-type{border-bottom:none;}
+.np-label{font-size:11px;color:var(--muted);white-space:nowrap;}
+.np-color-wrap{display:flex;align-items:center;gap:6px;}
+.np-color{width:34px;height:24px;border-radius:6px;border:1px solid rgba(181,171,154,.8);padding:2px;cursor:pointer;background:#fff;}
+.np-color-hex{width:68px;height:24px;border:1px solid rgba(181,171,154,.75);border-radius:6px;background:#fff;padding:0 5px;font-size:11px;font-family:"Consolas","Courier New",monospace;color:var(--text);outline:none;}
+.np-color-hex:focus{border-color:var(--accent);}
+.np-btn-row{display:flex;gap:6px;margin-top:10px;}
+.np-btn{flex:1;padding:6px 8px;border:1px solid rgba(181,171,154,.75);background:#fff;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;}
+.np-btn:hover{border-color:var(--accent);color:var(--accent);}
+.np-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.np-btn.primary:hover{background:#1d4ed8;}
+.bp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.bp-title{font-size:12px;font-weight:700;color:var(--text);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bp-close{border:none;background:none;font-size:20px;line-height:1;cursor:pointer;color:var(--muted);padding:0;}
+.bp-close:hover{color:var(--text);}
+.bp-section-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin:8px 0 4px;}
+.bp-row{display:flex;align-items:center;gap:6px;}
+.bp-row input[type="range"]{flex:1;accent-color:var(--accent);}
+.bp-num{width:52px;border:1px solid rgba(181,171,154,.8);border-radius:6px;background:#fff;padding:3px 5px;font-size:11px;font-weight:700;color:var(--text);text-align:center;}
+.bp-num:focus{outline:none;border-color:var(--accent);}
+.bp-unit{font-size:10px;color:var(--muted);min-width:14px;}
+.bp-foot{margin-top:10px;}
+.bp-reset{width:100%;padding:6px;border:1px solid rgba(181,171,154,.75);background:#fff;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;}
+.bp-reset:hover{border-color:var(--accent);color:var(--accent);}
+/* 레벨별 크기 조절 */
+.level-size-grid{display:grid;grid-template-columns:1fr;gap:3px;margin-top:4px;}
+.level-size-header{display:grid;grid-template-columns:28px 1fr 1fr;gap:4px;padding:0 4px 3px;border-bottom:1px solid rgba(181,171,154,.3);margin-bottom:2px;}
+.level-size-header span{font-size:10px;color:var(--muted);font-weight:600;text-align:center;}
+.level-size-header span:first-child{text-align:left;}
+.level-size-row{display:grid;grid-template-columns:28px 1fr 1fr;align-items:center;gap:4px;padding:4px 4px;border-radius:7px;background:#fff;border:1px solid rgba(181,171,154,.3);transition:.12s;}
+.level-size-row:hover{border-color:rgba(36,87,214,.3);background:#f5f8ff;}
+.level-size-badge{font-size:10px;font-weight:700;color:#2446a6;background:#eef2ff;border-radius:6px;text-align:center;padding:2px 3px;}
+.level-size-cell{display:flex;align-items:center;gap:3px;}
+.level-size-num{border:1px solid rgba(181,171,154,.6);border-radius:5px;background:#fafafa;padding:2px 0 2px 4px;font-size:11px;font-weight:700;color:var(--text);text-align:right;width:100%;min-width:0;}
+.level-size-num:focus{outline:none;border-color:var(--accent);background:#fff;}
+.level-size-unit{font-size:10px;color:var(--muted);flex-shrink:0;}
+.toast{position:fixed;right:24px;bottom:24px;padding:12px 16px;border-radius:14px;background:#1f2937;color:#fff;font-size:13px;line-height:1.5;box-shadow:0 18px 32px rgba(0,0,0,.18);opacity:0;transform:translateY(8px);pointer-events:none;transition:.2s ease;z-index:10000;}
+.toast.show{opacity:1;transform:translateY(0);}
+.modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(31,41,55,.32);z-index:20;}
+.modal-backdrop.show{display:flex;}
+.modal-card{width:min(520px,100%);max-height:min(720px,88vh);overflow:auto;border-radius:18px;border:1px solid rgba(181,171,154,.55);background:#fffdf8;box-shadow:0 24px 70px rgba(31,41,55,.22);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(181,171,154,.45);}
+.modal-head h3{margin:0;font-size:15px;}
+.modal-close{border:none;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:var(--muted);}
+.modal-body{padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
+.modal-body textarea{width:100%;min-height:220px;resize:vertical;border-radius:12px;border:1px solid rgba(181,171,154,.75);background:#fff;padding:10px 12px;font-family:"Consolas","Courier New",monospace;font-size:12px;line-height:1.5;}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 16px 16px;}
+.manual-list{margin:0;padding-left:18px;font-size:13px;line-height:1.8;color:var(--text);}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(36,87,214,.2);border-top-color:var(--accent);display:inline-block;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@media(max-width:1320px){.app-shell{grid-template-columns:270px minmax(0,1fr);}.rightbar{grid-column:1/-1;border-left:none;border-top:1px solid rgba(181,171,154,.45);}}
+@media(max-width:1180px){.app-shell{grid-template-columns:1fr;}.sidebar{border-right:none;border-bottom:1px solid rgba(181,171,154,.45);}.workspace-head{flex-direction:column;}.status-grid{min-width:0;width:100%;}}
+@media(max-width:720px){.sidebar,.workspace-head,.canvas-wrap{padding-left:16px;padding-right:16px;}.toolbar{margin:0 16px;}.format-grid,.status-grid,.custom-grid{grid-template-columns:1fr;}.action-row,.toolbar-actions{flex-direction:column;}.toolbar-btn,.secondary-btn,.primary-btn{width:100%;justify-content:center;}}
+</style>
+</head>
+<body>
+<div class="app-shell" id="appShell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <rect x="8" y="1.5" width="6" height="5" rx="1.6" fill="#2457d6"/>
+          <rect x="1.5" y="14" width="5.5" height="4.5" rx="1.4" fill="#64748b"/>
+          <rect x="8.25" y="14" width="5.5" height="4.5" rx="1.4" fill="#64748b"/>
+          <rect x="15" y="14" width="5.5" height="4.5" rx="1.4" fill="#64748b"/>
+          <path d="M11 6.5V10M4.25 10H17.75M4.25 10V14M11 10V14M17.75 10V14" stroke="#98a3b3" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="brand-copy"><h1>조직도 생성기</h1></div>
+      <button class="sidebar-toggle" id="sidebarToggleBtn" type="button">확장</button>
+    </div>
+
+    <section class="panel input-wrap">
+      <div class="textarea-tools">
+        <div class="input-title-row">
+          <strong>조직 구조 입력</strong>
+          <div class="mini-actions">
+            <button class="mini-btn" id="manualBtn" type="button">설명서</button>
+            <button class="mini-btn" id="backupBtn" type="button">백업/복구</button>
+          </div>
+        </div>
+        <span><strong>Enter</strong> / <strong>Tab</strong> / <strong>+ 왼쪽 보조</strong> / <strong>- 오른쪽 보조</strong></span>
+      </div>
+      <textarea id="inputText" spellcheck="false" placeholder="조직 구조를 입력하세요."></textarea>
+      <div class="error-box" id="errorBox"></div>
+      <div class="action-row">
+        <button class="primary-btn" id="saveInputBtn" type="button">저장</button>
+        <button class="secondary-btn" id="undoInputBtn" type="button">뒤로</button>
+        <button class="secondary-btn" id="sampleBtn" type="button">예시</button>
+      </div>
+      <div class="level-panel">
+        <div class="level-panel-head">
+          <strong>레벨 미리보기</strong>
+          <div class="level-filter" id="levelFilter">
+            <button class="level-filter-btn active" type="button" data-level="0">L1</button>
+            <button class="level-filter-btn active" type="button" data-level="1">L2</button>
+            <button class="level-filter-btn active" type="button" data-level="2">L3</button>
+            <button class="level-filter-btn active" type="button" data-level="3">L4</button>
+          </div>
+        </div>
+        <div class="level-list" id="levelPreview"></div>
+      </div>
+      <div class="level-panel">
+        <div class="level-panel-head"><strong>SmartArt Preview</strong></div>
+        <textarea id="smartArtPreview" class="smartart-preview" readonly></textarea>
+      </div>
+    </section>
+
+  </aside>
+
+  <main class="workspace">
+    <section class="workspace-head">
+      <div><h2>조직도</h2></div>
+      <div class="status-grid">
+        <div class="status-card"><span>조직수</span><strong id="countValue">0</strong></div>
+        <div class="status-card"><span>깊이</span><strong id="depthValue">0</strong></div>
+        <div class="status-card"><span>형식</span><strong id="formatValue"></strong></div>
+      </div>
+    </section>
+    <section class="toolbar">
+      <div class="toolbar-left">
+        <div class="zoom-group">
+          <input class="zoom-range" type="range" id="zoomRange" min="40" max="190" step="5" value="100">
+          <div class="zoom-value" id="zoomLabel">100%</div>
+        </div>
+      </div>
+      <div class="toolbar-actions">
+        <button class="toolbar-btn" type="button" id="smartArtCopyBtn"><strong>SmartArt</strong></button>
+        <button class="toolbar-btn" type="button" id="sheetCopyBtn"><strong>Excel</strong></button>
+        <button class="toolbar-btn" type="button" id="imageCopyBtn"><strong>이미지</strong></button>
+        <button class="toolbar-btn" type="button" id="pngBtn"><span>PNG</span><strong>저장</strong></button>
+        <button class="toolbar-btn" type="button" id="fullBackupBtn" style="border-color:rgba(36,87,214,.45);color:var(--accent);">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="flex-shrink:0"><path d="M6.5 1v7M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M1.5 9.5v1A1.5 1.5 0 003 12h7a1.5 1.5 0 001.5-1.5v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <strong>전체 백업</strong>
+        </button>
+      </div>
+    </section>
+    <section class="canvas-wrap">
+      <div class="canvas-panel" id="canvasPanel">
+        <div class="empty-state" id="emptyState">
+          <svg width="66" height="66" viewBox="0 0 66 66" fill="none">
+            <rect x="24" y="5" width="18" height="12" rx="3" stroke="#9aa5b1" stroke-width="2"/>
+            <rect x="5" y="39" width="15" height="12" rx="3" stroke="#9aa5b1" stroke-width="2"/>
+            <rect x="25.5" y="39" width="15" height="12" rx="3" stroke="#9aa5b1" stroke-width="2"/>
+            <rect x="46" y="39" width="15" height="12" rx="3" stroke="#9aa5b1" stroke-width="2"/>
+            <path d="M33 17V27M12.5 27H53.5M12.5 27V39M33 27V39M53.5 27V39" stroke="#9aa5b1" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+          <p>왼쪽에 조직 구조를 입력하고 <strong>저장</strong>을 누르세요.</p>
+        </div>
+        <div id="chartFrame"><svg id="chartSvg" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="rightbar">
+    <section class="panel">
+      <h2>화면 커스텀</h2>
+      <div class="theme-legend">
+        <div class="legend-pill"><span class="legend-dot" id="legendAssistant"></span><span>보조 노드</span></div>
+        <div class="legend-pill"><span class="legend-dot" id="legendRoot"></span><span>대표 노드</span></div>
+        <div class="legend-pill"><span class="legend-dot" id="legendMid"></span><span>중간 노드</span></div>
+        <div class="legend-pill"><span class="legend-dot" id="legendLeaf"></span><span>하위 노드</span></div>
+        <div class="legend-pill"><span class="legend-line" id="legendConnector"></span><span>연결선</span></div>
+      </div>
+      <div class="custom-grid">
+        <label class="control-field">
+          <strong>글꼴</strong>
+          <select id="fontSelect">
+            <option value="malgun">맑은 고딕</option>
+            <option value="segoe">Segoe UI</option>
+            <option value="gothic">Apple / Noto Gothic</option>
+            <option value="gulim">굴림</option>
+          </select>
+        </label>
+        <label class="control-field">
+          <strong>강조색</strong>
+          <div class="color-row"><input type="color" id="accentColor"></div>
+        </label>
+        <label class="control-field">
+          <strong>캔버스 배경</strong>
+          <div class="color-row"><input type="color" id="canvasColor"></div>
+        </label>
+        <label class="control-field">
+          <strong>연결선 색상</strong>
+          <div class="color-row"><input type="color" id="connectorColor"></div>
+        </label>
+        <label class="control-field">
+          <strong>대표 노드</strong>
+          <div class="color-row"><input type="color" id="rootNodeColor"></div>
+        </label>
+        <label class="control-field">
+          <strong>중간 노드</strong>
+          <div class="color-row"><input type="color" id="midNodeColor"></div>
+        </label>
+        <label class="control-field">
+          <strong>하위 노드</strong>
+          <div class="color-row"><input type="color" id="leafNodeColor"></div>
+        </label>
+        <label class="control-field">
+          <strong>보조 노드</strong>
+          <div class="color-row"><input type="color" id="assistantNodeColor"></div>
+        </label>
+      </div>
+      <div class="range-grid">
+        <label class="range-field">
+          <span>노드 둥글기</span>
+          <input type="range" id="radiusRange" min="0" max="60" step="1">
+          <input type="number" class="range-num" id="radiusNum" min="0" max="60" step="1">
+        </label>
+        <label class="range-field">
+          <span>가로 간격</span>
+          <input type="range" id="gapXRange" min="0" max="300" step="2">
+          <input type="number" class="range-num" id="gapXNum" min="0" max="300" step="2">
+        </label>
+        <label class="range-field">
+          <span>세로 간격</span>
+          <input type="range" id="gapYRange" min="0" max="500" step="2">
+          <input type="number" class="range-num" id="gapYNum" min="0" max="500" step="2">
+        </label>
+        <label class="range-field">
+          <span>보조 X축</span>
+          <input type="range" id="assistantXRange" min="0" max="300" step="2">
+          <input type="number" class="range-num" id="assistantXNum" min="0" max="300" step="2">
+        </label>
+        <label class="range-field">
+          <span>보조 Y축</span>
+          <input type="range" id="assistantYRange" min="-200" max="200" step="2">
+          <input type="number" class="range-num" id="assistantYNum" min="-200" max="200" step="2">
+        </label>
+        <label class="range-field">
+          <span>레벨1 X축</span>
+          <input type="range" id="levelOneXRange" min="-400" max="400" step="2">
+          <input type="number" class="range-num" id="levelOneXNum" min="-400" max="400" step="2">
+        </label>
+      </div>
+      <div class="action-row" style="margin-top:8px;">
+        <button class="primary-btn" id="saveThemeBtn" type="button">저장</button>
+        <button class="secondary-btn" id="undoThemeBtn" type="button">뒤로</button>
+        <button class="secondary-btn" id="themeResetBtn" type="button">기본값</button>
+        <button class="secondary-btn" id="themeBackupBtn" type="button">백업/복구</button>
+      </div>
+    </section>
+    <section class="panel" style="display:flex;flex-direction:column;gap:8px;">
+      <h2 style="margin:0;">레벨별 노드 크기</h2>
+      <div class="level-size-grid" id="levelSizeGrid"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+        <button class="secondary-btn" style="font-size:11px;padding:7px 6px;" id="resetAllBranchBtn" type="button">가지길이 초기화</button>
+        <button class="secondary-btn" style="font-size:11px;padding:7px 6px;" id="resetAllNodeSizeBtn" type="button">노드크기 초기화</button>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<!-- 노드 색상 팝업 -->
+<div id="nodePopup">
+  <div class="np-head">
+    <span class="np-title" id="npTitle">노드 색상</span>
+    <button class="np-close" id="npClose">&#x2715;</button>
+  </div>
+  <!-- 헤더(상단) 색 -->
+  <div class="np-row">
+    <span class="np-label">헤더 색</span>
+    <div class="np-color-wrap">
+      <input type="color" class="np-color" id="npHeaderColor">
+      <input type="text"  class="np-color-hex" id="npHeaderHex" maxlength="7" placeholder="#253247">
+    </div>
+  </div>
+  <!-- 바디(하단) 배경색 -->
+  <div class="np-row">
+    <span class="np-label">바디 배경</span>
+    <div class="np-color-wrap">
+      <input type="color" class="np-color" id="npBodyColor">
+      <input type="text"  class="np-color-hex" id="npBodyHex" maxlength="7" placeholder="#ffffff">
+    </div>
+  </div>
+  <!-- 헤더 텍스트 색 -->
+  <div class="np-row">
+    <span class="np-label">헤더 텍스트</span>
+    <div class="np-color-wrap">
+      <input type="color" class="np-color" id="npTextColor">
+      <input type="text"  class="np-color-hex" id="npTextHex" maxlength="7" placeholder="#f8fafc">
+    </div>
+  </div>
+  <div class="np-btn-row">
+    <button class="np-btn" id="npReset">이 노드 초기화</button>
+    <button class="np-btn" id="npResetAll">전체 초기화</button>
+  </div>
+</div>
+
+<!-- 가지 팝업 -->
+<div id="branchPopup">
+  <div class="bp-head">
+    <div style="display:flex;flex-direction:column;gap:3px;min-width:0;">
+      <span class="bp-title" id="bpTitle">가지 조절</span>
+      <span class="bp-type-badge" id="bpTypeBadge">↓ 부모줄기</span>
+    </div>
+    <button class="bp-close" id="bpClose">&#x2715;</button>
+  </div>
+  <div class="bp-section-label" id="bpVertLabel">세로 가지 길이</div>
+  <div class="bp-row">
+    <input type="range" id="bpSlider" min="20" max="500" step="2" value="86">
+    <input type="number" class="bp-num" id="bpNum" min="20" max="500" step="2" value="86">
+    <span class="bp-unit">px</span>
+  </div>
+  <div class="bp-section-label" style="display:flex;align-items:center;justify-content:space-between;">
+    <span>이 노드 가로 너비 고정</span>
+    <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;">
+      <input type="checkbox" id="bpWidthEnabled" style="accent-color:var(--accent);margin:0;">적용
+    </label>
+  </div>
+  <div class="bp-row" id="bpWidthRow" style="opacity:.45;pointer-events:none;transition:.15s;">
+    <input type="range" id="bpWidthSlider" min="60" max="400" step="4" value="120">
+    <input type="number" class="bp-num" id="bpWidthNum" min="60" max="400" step="4" value="120">
+    <span class="bp-unit">px</span>
+  </div>
+  <div class="bp-foot">
+    <button class="bp-reset" id="bpReset">이 가지 기본값 복원</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="manualModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>조직도 생성기 설명서</h3>
+      <button class="modal-close" type="button" data-close-modal>&times;</button>
+    </div>
+    <div class="modal-body">
+      <ol class="manual-list">
+        <li><strong>Enter</strong> / <strong>Tab</strong>: 새 조직 추가 / 하위로 내려갑니다.</li>
+        <li><strong>Shift+Tab</strong>: 한 단계 위로 올라갑니다.</li>
+        <li><strong>+ 조직명</strong>: 왼쪽 보조 노드, <strong>- 조직명</strong>: 오른쪽 보조 노드.</li>
+        <li><strong>노드 클릭</strong>: 해당 노드의 <u>헤더 색</u>·<u>바디 배경색</u>·<u>헤더 텍스트 색</u>을 개별 변경합니다. 컬러피커 또는 HEX 직접 입력 모두 가능합니다.</li>
+        <li><strong>세로 연결선 클릭</strong>: 해당 가지의 <u>세로 길이</u>와 <u>노드 가로 너비</u>를 개별 조절합니다. 슬라이더 또는 숫자 직접 입력 모두 가능합니다.</li>
+        <li><strong>우측 패널 → 레벨별 기본 노드 크기</strong>: L1~L4 각 레벨의 가로(너비)/세로(높이) 기본값을 수치 입력으로 일괄 조절합니다. 빈칸이면 자동(텍스트 기반) 크기가 적용됩니다.</li>
+        <li><strong>SmartArt</strong>: Excel/PowerPoint SmartArt 텍스트 창에 붙여넣기 가능합니다.</li>
+        <li><strong>마우스 드래그</strong>: 조직도 화면을 상하좌우로 이동합니다.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+<div class="modal-backdrop" id="backupModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>텍스트 백업/복구</h3>
+      <button class="modal-close" type="button" data-close-modal>&times;</button>
+    </div>
+    <div class="modal-body"><textarea id="backupText" spellcheck="false"></textarea></div>
+    <div class="modal-actions">
+      <button class="secondary-btn" type="button" id="makeBackupBtn">현재 내용 백업</button>
+      <button class="primary-btn" type="button" id="restoreBackupBtn">복구</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="fullBackupModal">
+  <div class="modal-card" style="width:min(560px,100%);">
+    <div class="modal-head">
+      <h3>전체 백업 / 복구</h3>
+      <button class="modal-close" type="button" data-close-modal>&times;</button>
+    </div>
+    <div class="modal-body" style="gap:10px;">
+
+      <!-- 슬롯 탭 -->
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;">저장 슬롯</span>
+        <div id="fbSlotTabs" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+      </div>
+
+      <!-- 슬롯 이름 -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label style="font-size:11px;color:var(--muted);white-space:nowrap;">슬롯 이름</label>
+        <input type="text" id="fbSlotName" maxlength="24" placeholder="프리셋 이름 (선택)"
+          style="flex:1;height:28px;border:1px solid rgba(181,171,154,.8);border-radius:8px;background:#fff;padding:0 9px;font-size:12px;font-family:inherit;outline:none;">
+      </div>
+
+      <!-- 포함 항목 안내 -->
+      <div style="display:flex;flex-wrap:wrap;gap:5px;">
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:#eef2ff;border:1px solid rgba(36,87,214,.15);font-size:10px;font-weight:700;color:#2446a6;">조직 텍스트</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:#eef2ff;border:1px solid rgba(36,87,214,.15);font-size:10px;font-weight:700;color:#2446a6;">색상·폰트·간격 테마</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:#eef2ff;border:1px solid rgba(36,87,214,.15);font-size:10px;font-weight:700;color:#2446a6;">레벨별 노드 크기</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:#eef2ff;border:1px solid rgba(36,87,214,.15);font-size:10px;font-weight:700;color:#2446a6;">가지별 세로 길이</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:#eef2ff;border:1px solid rgba(36,87,214,.15);font-size:10px;font-weight:700;color:#2446a6;">노드별 가로 너비</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:#eef2ff;border:1px solid rgba(36,87,214,.15);font-size:10px;font-weight:700;color:#2446a6;">노드별 개별 색상</span>
+      </div>
+
+      <!-- JSON 텍스트 -->
+      <textarea id="fbText" spellcheck="false"
+        style="min-height:180px;font-family:'Consolas','Courier New',monospace;font-size:11px;line-height:1.5;"></textarea>
+
+      <!-- 복구 대상 선택 -->
+      <div style="border:1px solid rgba(181,171,154,.45);border-radius:10px;padding:9px 11px;background:var(--panel-2);">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:7px;">복구 시 적용 항목 선택</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="fbChkText"      checked style="accent-color:var(--accent);"> 조직 텍스트</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="fbChkTheme"     checked style="accent-color:var(--accent);"> 테마(색상·폰트·간격)</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="fbChkLevelSize" checked style="accent-color:var(--accent);"> 레벨별 노드 크기</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="fbChkBranch"    checked style="accent-color:var(--accent);"> 가지별 세로 길이</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="fbChkWidth"     checked style="accent-color:var(--accent);"> 노드별 가로 너비</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="fbChkNodeColor" checked style="accent-color:var(--accent);"> 노드별 개별 색상</label>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-actions" style="gap:6px;flex-wrap:wrap;">
+      <button class="secondary-btn" type="button" id="fbExportBtn">현재 상태 → 텍스트</button>
+      <button class="secondary-btn" type="button" id="fbSaveSlotBtn">슬롯에 저장</button>
+      <button class="secondary-btn" type="button" id="fbCopyBtn">클립보드 복사</button>
+      <button class="primary-btn"   type="button" id="fbRestoreBtn">복구 적용</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="themeBackupModal">
+  <div class="modal-card" style="max-width:480px;">
+    <div class="modal-head">
+      <h3>화면 커스텀 백업/복구</h3>
+      <button class="modal-close" type="button" data-close-modal>&times;</button>
+    </div>
+    <div class="modal-body" style="gap:8px;">
+      <p style="margin:0;font-size:12px;color:var(--muted);line-height:1.6;">
+        현재 테마 설정을 JSON으로 백업하거나, 아래에 붙여넣어 복구합니다.<br>
+        슬롯을 선택해 여러 개의 프리셋을 저장·불러올 수 있습니다.
+      </p>
+      <!-- 슬롯 탭 -->
+      <div style="display:flex;gap:5px;flex-wrap:wrap;" id="themeSlotTabs"></div>
+      <!-- JSON 텍스트 영역 -->
+      <textarea id="themeBackupText" spellcheck="false" style="min-height:160px;font-family:'Consolas','Courier New',monospace;font-size:11px;"></textarea>
+      <!-- 슬롯 이름 편집 -->
+      <div style="display:flex;align-items:center;gap:6px;">
+        <label style="font-size:11px;color:var(--muted);white-space:nowrap;">슬롯 이름</label>
+        <input type="text" id="themeSlotName" maxlength="20" placeholder="프리셋 이름"
+          style="flex:1;height:28px;border:1px solid rgba(181,171,154,.8);border-radius:8px;background:#fff;padding:0 8px;font-size:12px;font-family:inherit;outline:none;">
+      </div>
+    </div>
+    <div class="modal-actions" style="gap:6px;flex-wrap:wrap;">
+      <button class="secondary-btn" type="button" id="themeExportBtn">현재 테마 → 텍스트</button>
+      <button class="secondary-btn" type="button" id="themeSaveSlotBtn">슬롯에 저장</button>
+      <button class="primary-btn"   type="button" id="themeRestoreBtn">텍스트 → 복구 적용</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════
+const FONT_PRESETS = {
+  malgun: '"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif',
+  segoe:  '"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif',
+  gothic: '"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif',
+  gulim:  '"Gulim","Malgun Gothic","Apple SD Gothic Neo",sans-serif'
+};
+
+const FORMAT_OPTIONS = {
+  indent: {
+    label: '들여쓰기',
+    example: 'CEO | 회장 | 정기문\n  + 전략자문 |  | \n  신재생사업 | 장 | 이태호\n    Global Sourcing | 담당 | 김원희\n    Eco-AI Mgmt | 담당 | 서정오\n  비전본부 | 상무 | 박성우\n  전기기계본부 | 부사장 | 구본호\n    비전기획팀 | 부장 | 김구호\n  경영기획실 | 상무 | 박현철\n    경영기획팀 | 이사 | 김두현\n    회계팀 | 차장 | 김세정\n    IT전략팀 | 담당 | 김도영\n  경영지원실 | 부사장 | 구본호\n    인사팀 | 과장 | 조효정\n    총무팀 | 부장 | 이종규\n  - ESG팀 | 겸임 | 서유리\n  경영총괄 | 전무 | 진대규'
+  },
+  bullet: {
+    label: '불릿',
+    example: '- CEO | 회장 | 정기문\n  - + 전략자문 |  | \n  - 신재생사업 | 장 | 이태호\n    - Global Sourcing | 담당 | 김원희\n  - 비전본부 | 상무 | 박성우\n  - 경영기획실 | 상무 | 박현철\n    - 경영기획팀 | 이사 | 김두현\n    - 회계팀 | 차장 | 김세정\n  - - ESG팀 | 겸임 | 서유리\n  - 경영총괄 | 전무 | 진대규'
+  },
+  arrow: {
+    label: '화살표',
+    example: 'CEO | 회장 | 정기문 > 신재생사업 | 장 | 이태호 > Global Sourcing | 담당 | 김원희\nCEO | 회장 | 정기문 > 전기기계본부 | 부사장 | 구본호 > 비전기획팀 | 부장 | 김구호\nCEO | 회장 | 정기문 > 경영기획실 | 상무 | 박현철 > 회계팀 | 차장 | 김세정\nCEO | 회장 | 정기문 > 경영지원실 | 부사장 | 구본호 > 총무팀 | 부장 | 이종규'
+  },
+  excel: {
+    label: '엑셀 열',
+    example: 'CEO | 회장 | 정기문\t신재생사업 | 장 | 이태호\tGlobal Sourcing | 담당 | 김원희\nCEO | 회장 | 정기문\t경영기획실 | 상무 | 박현철\t회계팀 | 차장 | 김세정'
+  }
+};
+
+const DEFAULT_THEME = {
+  fontKey:'malgun', accent:'#2457d6', canvas:'#ffffff', connector:'#c7beae',
+  root:'#253247', assistant:'#253247', mid:'#e9efff', leaf:'#eefaf1',
+  radius:12, gapX:28, gapY:86, assistantX:18, assistantY:0, levelOneX:0
+};
+
+// 레벨별 기본 노드 너비/세로 (레벨 0~3+)
+const DEFAULT_LEVEL_SIZE = [
+  {w:null, h:54},  // L1 (root)
+  {w:null, h:54},  // L2
+  {w:null, h:54},  // L3
+  {w:null, h:54},  // L4+
+];
+// null = 자동 (텍스트 기반)
+const levelSizeMap = [
+  {w:null, h:54},
+  {w:null, h:54},
+  {w:null, h:54},
+  {w:null, h:54},
+];
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+const theme = Object.assign({}, DEFAULT_THEME);
+let selectedFormat = 'indent';
+let zoomScale = 100;
+let currentTree = null;
+let currentFormat = 'indent';
+let currentLayout = { width:0, height:0 };
+let savedInputText = '';
+let savedTheme = null;
+let inputRenderTimer = null;
+const activePreviewLevels = new Set([0,1,2,3]);
+const APP_KEY = 'orgChart_v4';
+const BACKUP_KEY = 'orgChart_v4_backup';
+
+// 가지 세로 길이 개별 오버라이드 (nodeId → gapY)
+const branchGapMap = new Map();
+// 노드 가로 너비 개별 오버라이드 (nodeId → width)
+const nodeWidthMap = new Map();
+// 노드 개별 색상 오버라이드 (nodeId → {header, body, text})
+const nodeColorMap = new Map();
+let activeBranchId = null;
+let activeNodeId = null;
+
+// ═══════════════════════════════════════════════════════
+// LAYOUT ENGINE
+// ═══════════════════════════════════════════════════════
+class TreeLayout {
+  constructor() {
+    this.cvs = document.createElement('canvas');
+    this.ctx = this.cvs.getContext('2d');
+    this.nodeH = 54;
+    this.headerH = 28;
+    this.detailH = 26;
+    this.minW = 92;
+    this.padX = 34;
+    this.sibGap = 28;
+    this.levelGap = 86;
+    this.outerPad = 28;
+  }
+
+  mw(text, font) {
+    this.ctx.font = font;
+    return Math.ceil(this.ctx.measureText(text || '').width);
+  }
+
+  nodeWidth(node) {
+    // 개별 노드 오버라이드 조회
+    if (node._id && nodeWidthMap.has(node._id)) {
+      const fw = nodeWidthMap.get(node._id);
+      const f = FONT_PRESETS[theme.fontKey];
+      const lc = Math.max(48, this.mw(node.title || '', '600 11px ' + f) + 20);
+      const rc = Math.max(52, this.mw(node.person || '', '600 11px ' + f) + 20);
+      node._lw = Math.min(lc, fw/2); node._rw = Math.min(rc, fw/2);
+      return fw;
+    }
+    const f = FONT_PRESETS[theme.fontKey];
+    const nw = this.mw(node.name, '700 14px ' + f) + this.padX;
+    const lc = Math.max(48, this.mw(node.title || '', '600 11px ' + f) + 20);
+    const rc = Math.max(52, this.mw(node.person || '', '600 11px ' + f) + 20);
+    node._lw = lc; node._rw = rc;
+    const autoW = Math.max(this.minW, nw, lc + rc);
+    // 레벨별 기본 너비 적용
+    const lvIdx = Math.min(3, node.depth || 0);
+    const lvW = levelSizeMap[lvIdx] ? levelSizeMap[lvIdx].w : null;
+    return lvW !== null ? Math.max(autoW, lvW) : autoW;
+  }
+
+  assignAssistantMetrics(node, depth) {
+    node.depth = depth;
+    node.width = this.nodeWidth(node);
+    // 보조 노드는 부모 레벨(depth-0.5) 기준으로 레벨 크기 적용
+    const lvIdx = Math.min(3, Math.floor(depth));
+    const lvH = levelSizeMap[lvIdx] ? levelSizeMap[lvIdx].h : null;
+    node.height = lvH !== null ? lvH : this.nodeH;
+    node.subtreeWidth = node.width;
+  }
+
+  assignMetrics(node, depth) {
+    node.depth = depth;
+    // 레벨별 세로 높이 적용
+    const lvIdx = Math.min(3, depth);
+    const lvH = levelSizeMap[lvIdx] ? levelSizeMap[lvIdx].h : null;
+    node.height = lvH !== null ? lvH : this.nodeH;
+    node.width = this.nodeWidth(node);
+    node.assistants.forEach(a => this.assignAssistantMetrics(a, depth + 0.5));
+    if (!node.children.length) { node.subtreeWidth = node.width; return; }
+    node.children.forEach(c => this.assignMetrics(c, depth + 1));
+    const cw = node.children.reduce((s,c) => s + c.subtreeWidth, 0) + this.sibGap * (node.children.length - 1);
+    node.subtreeWidth = Math.max(node.width, cw);
+  }
+
+  assignAssistantPos(node) {
+    if (!node.assistants.length) return;
+    const baseY = node.y + node.height + this.levelGap / 4 - this.nodeH / 2;
+    const off = { left: theme.assistantX, right: theme.assistantX };
+    node.assistants.forEach(a => {
+      const side = a.assistantSide === 'right' ? 'right' : 'left';
+      a.x = side === 'right' ? node.centerX + off[side] : node.centerX - a.width - off[side];
+      off[side] += a.width + this.sibGap;
+      a.y = baseY + theme.assistantY;
+      a.centerX = a.x + a.width / 2;
+      a.centerY = a.y + a.height / 2;
+    });
+  }
+
+  nodeHeight(node) {
+    return node.height || this.nodeH;
+  }
+
+  // parentBottom: px position of parent's bottom edge (null for root)
+  // parentGap: 부모 측 gap (부모 ID 기반, junction 위치 결정용)
+  assignPositions(node, left, parentBottom, parentGap) {
+    node.centerX = left + node.subtreeWidth / 2;
+    node.x = node.centerX - node.width / 2;
+
+    if (parentBottom === null) {
+      node.y = this.outerPad;
+      node._junctionY = null; // 루트는 junction 없음
+    } else {
+      // 자식 줄기 gap (자식 ID 기준)
+      const childGap = branchGapMap.has(node._id) ? branchGapMap.get(node._id) : this.levelGap;
+      // 부모 줄기 gap (부모 ID 기준) - junction까지의 절반
+      const pGap = parentGap !== undefined ? parentGap : this.levelGap;
+      // junction Y = parentBottom + pGap/2
+      // child top  = junction + childGap/2
+      // → 총 거리 = pGap/2 + childGap/2
+      node._junctionY = parentBottom + pGap / 2;
+      node.y = node._junctionY + childGap / 2;
+    }
+
+    this.assignAssistantPos(node);
+    if (!node.children.length) return;
+
+    // 이 노드의 children을 위한 junction은 이 노드의 gap으로 결정
+    const myGap = branchGapMap.has(node._id) ? branchGapMap.get(node._id) : this.levelGap;
+    const cw = node.children.reduce((s,c) => s + c.subtreeWidth, 0) + this.sibGap * (node.children.length - 1);
+    let cl = left + (node.subtreeWidth - cw) / 2;
+    const myBottom = node.y + node.height;
+    node.children.forEach(c => {
+      this.assignPositions(c, cl, myBottom, myGap);
+      cl += c.subtreeWidth + this.sibGap;
+    });
+  }
+
+  layout(root) {
+    // Assign IDs
+    let idCtr = 0;
+    const assignIds = (n) => { n._id = String(idCtr++); n.children.forEach(assignIds); n.assistants.forEach(a => { a._id = 'a' + idCtr++; }); };
+    assignIds(root);
+
+    this.sibGap = theme.gapX;
+    this.levelGap = theme.gapY;
+    this.assignMetrics(root, 0);
+    this.assignPositions(root, this.outerPad, null);
+
+    // Shift single top node
+    if (theme.levelOneX !== 0) {
+      root.x += theme.levelOneX;
+      root.centerX += theme.levelOneX;
+      root.assistants.forEach(a => { a.x += theme.levelOneX; a.centerX += theme.levelOneX; });
+    }
+
+    // Compute bounds
+    const bounds = { minX:Infinity, minY:Infinity, maxX:0, maxY:0 };
+    const visit = n => {
+      bounds.minX = Math.min(bounds.minX, n.x);
+      bounds.minY = Math.min(bounds.minY, n.y);
+      bounds.maxX = Math.max(bounds.maxX, n.x + n.width);
+      bounds.maxY = Math.max(bounds.maxY, n.y + n.height);
+      n.assistants.forEach(a => {
+        bounds.minX = Math.min(bounds.minX, a.x);
+        bounds.maxX = Math.max(bounds.maxX, a.x + a.width);
+        bounds.minY = Math.min(bounds.minY, a.y);
+        bounds.maxY = Math.max(bounds.maxY, a.y + a.height);
+      });
+      n.children.forEach(visit);
+    };
+    visit(root);
+
+    // Shift left if needed
+    if (bounds.minX < this.outerPad) {
+      const dx = this.outerPad - bounds.minX;
+      const shift = n => { n.x += dx; n.centerX += dx; n.assistants.forEach(a => { a.x += dx; a.centerX += dx; }); n.children.forEach(shift); };
+      shift(root);
+      bounds.minX += dx; bounds.maxX += dx;
+    }
+
+    return { width: bounds.maxX + this.outerPad, height: bounds.maxY + this.outerPad };
+  }
+}
+
+const layout = new TreeLayout();
+
+// ═══════════════════════════════════════════════════════
+// SVG HELPERS
+// ═══════════════════════════════════════════════════════
+function r(v) { return Number(v.toFixed(1)); }
+function ex(v) { return v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function hexRgb(h) { const c=h.replace('#',''); const f=c.length===3?c.split('').map(x=>x+x).join(''):c; const n=parseInt(f,16); return{r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
+function rgba(h,a) { const {r,g,b}=hexRgb(h); return 'rgba('+r+','+g+','+b+','+a+')'; }
+function shiftColor(h,d) { const {r,g,b}=hexRgb(h); return '#'+[r,g,b].map(c=>Math.max(0,Math.min(255,c+d)).toString(16).padStart(2,'0')).join(''); }
+function textColor(h) { const {r,g,b}=hexRgb(h); return (0.299*r+0.587*g+0.114*b)/255>0.72?'#1f2937':'#f8fafc'; }
+function levelStyle(depth) { const f=depth===0?theme.root:depth===1?theme.mid:theme.leaf; return{fill:f,stroke:shiftColor(f,-22),text:textColor(f)}; }
+function assistStyle() { return{fill:theme.assistant,stroke:shiftColor(theme.assistant,-18),text:textColor(theme.assistant)}; }
+
+function line(x1,y1,x2,y2) {
+  return '<line x1="'+r(x1)+'" y1="'+r(y1)+'" x2="'+r(x2)+'" y2="'+r(y2)+'"/>';
+}
+
+function bandPath(x,y,w,h,rad) {
+  const rv = Math.min(rad, h/2, w/2);
+  return ['M',r(x+rv),r(y),'H',r(x+w-rv),'Q',r(x+w),r(y),r(x+w),r(y+rv),'V',r(y+h),'H',r(x),'V',r(y+rv),'Q',r(x),r(y),r(x+rv),r(y),'Z'].join(' ');
+}
+
+function nodeMarkup(node) {
+  const s = node.assistant ? assistStyle() : levelStyle(node.depth);
+  // 개별 색상 오버라이드
+  const nc = nodeColorMap.get(node._id);
+  const fillHeader = nc?.header || s.fill;
+  const fillBody   = nc?.body   || '#ffffff';
+  const strokeC    = shiftColor(fillHeader, -22);
+  const textC      = nc?.text   || s.text;
+
+  // 노드 높이에 비례해서 헤더/디테일 영역 계산
+  const totalH = node.height || layout.nodeH;
+  const ratio = totalH / layout.nodeH;
+  const hh = Math.round(layout.headerH * ratio);
+  const dh = totalH - hh;
+  const fp = FONT_PRESETS[theme.fontKey];
+  const rad = theme.radius;
+
+  const outer = '<rect x="'+r(node.x)+'" y="'+r(node.y)+'" width="'+r(node.width)+'" height="'+r(totalH)+'" rx="'+rad+'" fill="'+fillBody+'" stroke="'+strokeC+'" stroke-width="1.5"/>';
+  const top   = '<path d="'+bandPath(node.x,node.y,node.width,hh,rad)+'" fill="'+fillHeader+'" stroke="'+strokeC+'" stroke-width="1.5"/>';
+  const dy = node.y+hh, dx = node.x+node.width/2;
+  const divs = '<line x1="'+r(node.x)+'" y1="'+r(dy)+'" x2="'+r(node.x+node.width)+'" y2="'+r(dy)+'" stroke="'+strokeC+'" stroke-width="1"/>'+
+    '<line x1="'+r(dx)+'" y1="'+r(dy)+'" x2="'+r(dx)+'" y2="'+r(node.y+totalH)+'" stroke="'+strokeC+'" stroke-width="1"/>';
+  const fs = node.depth===0?14:13;
+  const ht = '<text x="'+r(node.centerX)+'" y="'+r(node.y+hh/2+4)+'" text-anchor="middle" font-size="'+fs+'" font-weight="700" fill="'+textC+'" font-family="'+ex(fp)+'">'+ex(node.name)+'</text>';
+  const detailY = node.y + hh + Math.max(dh/2, 10);
+  const bodyTextC = nc?.body ? textColor(nc.body) : '#1f2937';
+  const lt = dh >= 14 ? '<text x="'+r(node.x+node.width/4)+'" y="'+r(detailY)+'" text-anchor="middle" font-size="11" font-weight="600" fill="'+bodyTextC+'" font-family="'+ex(fp)+'">'+ex(node.title||'')+'</text>' : '';
+  const rt = dh >= 14 ? '<text x="'+r(node.x+node.width*0.75)+'" y="'+r(detailY)+'" text-anchor="middle" font-size="11" font-weight="600" fill="'+bodyTextC+'" font-family="'+ex(fp)+'">'+ex(node.person||'')+'</text>' : '';
+
+  // 클릭 히트 오버레이 (투명 rect) — node-grp으로 감싸서 hover 효과도 적용
+  const onclk = 'nodeClick(event,\''+node._id+'\',\''+ex(node.name)+'\')';
+  const overlay = '<rect class="node-hit-overlay" x="'+r(node.x)+'" y="'+r(node.y)+'" width="'+r(node.width)+'" height="'+r(totalH)+'" rx="'+rad+'"'
+    +' fill="rgba(36,87,214,.10)" stroke="var(--accent)" stroke-width="2" pointer-events="none"/>';
+  const hitRect = '<rect x="'+r(node.x)+'" y="'+r(node.y)+'" width="'+r(node.width)+'" height="'+r(totalH)+'"'
+    +' rx="'+rad+'" fill="transparent" stroke="none" cursor="pointer" onclick="'+onclk+'"/>';
+
+  return '<g class="node-grp">'+outer+top+divs+ht+lt+rt+overlay+hitRect+'</g>';
+}
+
+// ═══════════════════════════════════════════════════════
+// BUILD SVG
+// ═══════════════════════════════════════════════════════
+
+/* segGroup: 실제 선 + 히트 영역을 g로 묶어 호버 효과 적용 */
+function segGroup(x1,y1,x2,y2, nodeId, nodeName, type, strokeAttr) {
+  const isVert = (type === 'vert-spine' || type === 'vert-child');
+  const hitSW = isVert ? 18 : 14;
+  const onclick = 'branchClick(event,\''+nodeId+'\',\''+ex(nodeName)+'\',\''+type+'\')';
+  return '<g class="seg-grp" onclick="'+onclick+'">'
+    + '<line class="seg-vis" x1="'+r(x1)+'" y1="'+r(y1)+'" x2="'+r(x2)+'" y2="'+r(y2)+'" '+strokeAttr+'/>'
+    + '<line x1="'+r(x1)+'" y1="'+r(y1)+'" x2="'+r(x2)+'" y2="'+r(y2)+'" stroke="transparent" stroke-width="'+hitSW+'"/>'
+    + '</g>';
+}
+
+function buildSvg(tree, w, h) {
+  const segs  = [];   // 클릭 가능한 선 그룹 (seg-grp)
+  const aSegs = [];   // 보조 노드 연결선 그룹
+  const nodes = [];
+
+  const strokeAttr = 'stroke="'+theme.connector+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+
+  const traverse = (node) => {
+    nodes.push(nodeMarkup(node));
+    node.assistants.forEach(a => nodes.push(nodeMarkup(a)));
+
+    if (node.children.length || node.assistants.length) {
+      const pb  = node.y + node.height;
+      const myGap = branchGapMap.has(node._id) ? branchGapMap.get(node._id) : layout.levelGap;
+      const jy  = pb + myGap / 2;   // 이 노드 → 자식 방향 junction Y
+      const bx  = node.centerX;
+
+      if (node.children.length) {
+        // ① 부모 bottom → junction: 이 노드 ID로 gap 조절 (vert-spine)
+        segs.push(segGroup(bx, pb, bx, jy, node._id, node.name, 'vert-spine', strokeAttr));
+
+        // 자식별 junction Y (레이아웃에서 저장된 _junctionY)
+        const childJYs = node.children.map(c =>
+          (c._junctionY !== undefined && c._junctionY !== null) ? c._junctionY : jy
+        );
+
+        const allCx = node.children.map(c => c.centerX);
+        const barX0 = Math.min(...allCx);
+        const barX1 = Math.max(...allCx);
+
+        // ② 가로 수평 바 (junction Y 기준) - 이 노드 ID로 조절 (horiz)
+        // 자식이 1명이어도 부모→자식 연결을 위해 항상 그림
+        {
+          const bx0 = Math.min(bx, barX0);
+          const bx1 = Math.max(bx, barX1);
+          if (bx1 > bx0) {
+            segs.push(segGroup(bx0, jy, bx1, jy, node._id, node.name, 'horiz', strokeAttr));
+          } else {
+            // 자식이 딱 1명이고 bx == barX0 == barX1인 경우: 직선이므로 vert-spine만으로 충분
+            // 그래도 클릭 가능하도록 짧은 horiz 세그먼트 추가
+            segs.push(segGroup(bx - 1, jy, bx + 1, jy, node._id, node.name, 'horiz', strokeAttr));
+          }
+        }
+
+        // ③ junction → 각 자식 top: 각 자식 ID로 gap 조절 (vert-child)
+        node.children.forEach((c, i) => {
+          const cJY = childJYs[i];
+          // junction에서 자식 top까지의 줄기
+          if (c.y > cJY) {
+            segs.push(segGroup(c.centerX, cJY, c.centerX, c.y, c._id, c.name, 'vert-child', strokeAttr));
+          }
+          // junction Y가 부모 jy와 다를 경우 수직 연결 보완
+          if (Math.abs(cJY - jy) > 1) {
+            const minY = Math.min(jy, cJY);
+            const maxY = Math.max(jy, cJY);
+            segs.push(segGroup(c.centerX, minY, c.centerX, maxY, node._id, node.name, 'vert-spine', strokeAttr));
+          }
+        });
+      }
+
+      // 보조 노드 수평 연결선
+      node.assistants.forEach(a => {
+        const ax = a.assistantSide === 'right' ? a.x : a.x + a.width;
+        aSegs.push(segGroup(ax, a.centerY, bx, a.centerY, a._id, a.name, 'horiz', strokeAttr));
+      });
+    }
+
+    node.children.forEach(traverse);
+  };
+
+  traverse(tree);
+
+  return [
+    '<defs><filter id="ns" x="-30%" y="-30%" width="160%" height="180%">',
+    '<feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#8b7c63" flood-opacity="0.12"/></filter></defs>',
+    '<rect x="0" y="0" width="'+w+'" height="'+h+'" fill="transparent"/>',
+    '<g>'+aSegs.join('')+'</g>',
+    '<g>'+segs.join('')+'</g>',
+    '<g filter="url(#ns)">'+nodes.join('')+'</g>'
+  ].join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// BRANCH POPUP
+// ═══════════════════════════════════════════════════════
+// activeBranchType: 'vert-spine' | 'vert-child' | 'horiz'
+let activeBranchType = 'vert-spine';
+
+function branchClick(event, nodeId, nodeName, type) {
+  event.stopPropagation();
+  // 노드 팝업이 열려 있으면 닫기
+  closeNodePopup();
+  activeBranchId   = nodeId;
+  activeBranchType = type || 'vert-spine';
+
+  // ── 세로 가지 길이 ──
+  const curGap = branchGapMap.has(nodeId) ? branchGapMap.get(nodeId) : theme.gapY;
+  document.getElementById('bpSlider').value = curGap;
+  document.getElementById('bpNum').value    = curGap;
+
+  // ── 가로 노드 너비 ──
+  const hasW = nodeWidthMap.has(nodeId);
+  const curW = hasW ? nodeWidthMap.get(nodeId) : (findNodeWidth(nodeId) || 120);
+  document.getElementById('bpWidthSlider').value = curW;
+  document.getElementById('bpWidthNum').value    = curW;
+  const widthEnabled = document.getElementById('bpWidthEnabled');
+  widthEnabled.checked = hasW;
+  const widthRow = document.getElementById('bpWidthRow');
+  widthRow.style.opacity      = hasW ? '1' : '.45';
+  widthRow.style.pointerEvents = hasW ? 'auto' : 'none';
+
+  // ── 팝업 제목 & 배지 ──
+  const typeInfo = {
+    'vert-spine': { badge: '↓ 부모 줄기',  vertLbl: '부모→분기점 세로 길이' },
+    'vert-child': { badge: '↓ 자식 줄기',  vertLbl: '분기점→자식 세로 길이' },
+    'horiz':      { badge: '↔ 가로 바',    vertLbl: '세로 가지 길이 (연결점)' }
+  }[activeBranchType] || { badge: '가지', vertLbl: '세로 가지 길이' };
+
+  document.getElementById('bpTitle').textContent = nodeName;
+  document.getElementById('bpTypeBadge').textContent = typeInfo.badge;
+  document.getElementById('bpVertLabel').textContent = typeInfo.vertLbl;
+
+  const popup = document.getElementById('branchPopup');
+  popup.classList.add('show'); // 먼저 보여야 크기 측정 가능
+  const pw = popup.offsetWidth  || 280;
+  const ph = popup.offsetHeight || 240;
+  let px = event.clientX + 14;
+  let py = event.clientY - 20;
+  if (px + pw > window.innerWidth  - 8) px = event.clientX - pw - 8;
+  if (py + ph > window.innerHeight - 8) py = event.clientY - ph + 20;
+  if (px < 8) px = 8;
+  if (py < 8) py = 8;
+  popup.style.left = px + 'px';
+  popup.style.top  = py + 'px';
+}
+
+function findNodeWidth(nodeId) {
+  if (!currentTree) return null;
+  const find = (n) => {
+    if (n._id === nodeId) return n.width || null;
+    for (const c of n.children) { const rr = find(c); if (rr !== null) return rr; }
+    for (const a of n.assistants) { if (a._id === nodeId) return a.width || null; }
+    return null;
+  };
+  return find(currentTree);
+}
+
+function closeBranchPopup() {
+  document.getElementById('branchPopup').classList.remove('show');
+  activeBranchId = null;
+}
+
+document.getElementById('bpClose').addEventListener('click', closeBranchPopup);
+
+// 세로 가지 길이: 슬라이더 + 숫자입력 연동
+function applyBranchGap(val) {
+  val = Math.max(20, Math.min(500, Number(val)));
+  document.getElementById('bpSlider').value = val;
+  document.getElementById('bpNum').value = val;
+  if (activeBranchId !== null) {
+    branchGapMap.set(activeBranchId, val);
+    if (currentTree) renderTree(currentTree);
+  }
+}
+// bpSlider: 드래그 시 실시간 반영
+document.getElementById('bpSlider').addEventListener('input', function() {
+  const val = Math.max(20, Math.min(500, Number(this.value)));
+  document.getElementById('bpNum').value = val;
+  if (activeBranchId !== null) {
+    branchGapMap.set(activeBranchId, val);
+    if (currentTree) renderTree(currentTree);
+  }
+});
+// bpNum: 직접 입력 — Enter 또는 포커스 아웃 시에만 반영 (타이핑 중 커서 이탈 방지)
+document.getElementById('bpNum').addEventListener('change', function() { applyBranchGap(this.value); });
+document.getElementById('bpNum').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); applyBranchGap(this.value); this.blur(); }
+});
+
+// 가로 노드 너비: 슬라이더 + 숫자입력 연동
+function applyBranchWidth(val) {
+  val = Math.max(60, Math.min(400, Number(val)));
+  document.getElementById('bpWidthSlider').value = val;
+  document.getElementById('bpWidthNum').value = val;
+  if (activeBranchId !== null && document.getElementById('bpWidthEnabled').checked) {
+    nodeWidthMap.set(activeBranchId, val);
+    if (currentTree) renderTree(currentTree);
+  }
+}
+// bpWidthSlider: 드래그 시 실시간 반영
+document.getElementById('bpWidthSlider').addEventListener('input', function() {
+  const val = Math.max(60, Math.min(400, Number(this.value)));
+  document.getElementById('bpWidthNum').value = val;
+  if (activeBranchId !== null && document.getElementById('bpWidthEnabled').checked) {
+    nodeWidthMap.set(activeBranchId, val);
+    if (currentTree) renderTree(currentTree);
+  }
+});
+// bpWidthNum: Enter 또는 포커스 아웃 시 반영
+document.getElementById('bpWidthNum').addEventListener('change', function() { applyBranchWidth(this.value); });
+document.getElementById('bpWidthNum').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); applyBranchWidth(this.value); this.blur(); }
+});
+document.getElementById('bpWidthEnabled').addEventListener('change', function() {
+  const row = document.getElementById('bpWidthRow');
+  row.style.opacity = this.checked ? '1' : '.45';
+  row.style.pointerEvents = this.checked ? 'auto' : 'none';
+  if (activeBranchId !== null) {
+    if (this.checked) {
+      nodeWidthMap.set(activeBranchId, Number(document.getElementById('bpWidthNum').value));
+    } else {
+      nodeWidthMap.delete(activeBranchId);
+    }
+    if (currentTree) renderTree(currentTree);
+  }
+});
+
+document.getElementById('bpReset').addEventListener('click', function() {
+  if (activeBranchId !== null) {
+    branchGapMap.delete(activeBranchId);
+    nodeWidthMap.delete(activeBranchId);
+    const def = theme.gapY;
+    document.getElementById('bpSlider').value = def;
+    document.getElementById('bpNum').value = def;
+    document.getElementById('bpWidthEnabled').checked = false;
+    const widthRow = document.getElementById('bpWidthRow');
+    widthRow.style.opacity = '.45';
+    widthRow.style.pointerEvents = 'none';
+    if (currentTree) renderTree(currentTree);
+  }
+});
+
+document.getElementById('resetAllBranchBtn').addEventListener('click', function() {
+  branchGapMap.clear();
+  if (currentTree) renderTree(currentTree);
+  showToast('모든 가지 세로 길이를 초기화했습니다.');
+});
+
+document.addEventListener('click', function(e) {
+  const bp = document.getElementById('branchPopup');
+  if (bp.classList.contains('show') && !bp.contains(e.target)) closeBranchPopup();
+  const np = document.getElementById('nodePopup');
+  if (np.classList.contains('show') && !np.contains(e.target)) closeNodePopup();
+});
+
+// ═══════════════════════════════════════════════════════
+// NODE POPUP (노드 색상 개별 조절)
+// ═══════════════════════════════════════════════════════
+
+function closeNodePopup() {
+  document.getElementById('nodePopup').classList.remove('show');
+  activeNodeId = null;
+}
+
+/** hex 문자열을 color input에 안전하게 설정 */
+function setColorInput(el, hex) {
+  try { el.value = hex; } catch(_) {}
+}
+
+/** hex 정규화: '#abc' → '#aabbcc', 이미 6자리면 그대로 */
+function normalizeHex(h) {
+  h = h.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(h)) return h.toLowerCase();
+  if (/^#[0-9a-fA-F]{3}$/.test(h)) return '#' + h[1]+h[1]+h[2]+h[2]+h[3]+h[3];
+  if (/^[0-9a-fA-F]{6}$/.test(h)) return '#' + h.toLowerCase();
+  return null;
+}
+
+/** 현재 노드의 기본(테마) 색상 반환 */
+function getDefaultNodeColors(nodeId) {
+  if (!currentTree) return { header: theme.root, body: '#ffffff', text: textColor(theme.root) };
+  const find = (n) => {
+    if (n._id === nodeId) return n;
+    for (const c of n.children) { const r = find(c); if (r) return r; }
+    for (const a of n.assistants) { if (a._id === nodeId) return a; }
+    return null;
+  };
+  const node = find(currentTree);
+  if (!node) return { header: theme.root, body: '#ffffff', text: textColor(theme.root) };
+  const s = node.assistant ? assistStyle() : levelStyle(node.depth);
+  return { header: s.fill, body: '#ffffff', text: s.text };
+}
+
+function syncNpHex(colorId, hexId) {
+  const cEl = document.getElementById(colorId);
+  const hEl = document.getElementById(hexId);
+  hEl.value = cEl.value;
+}
+
+function applyNpColorToMap() {
+  if (activeNodeId === null) return;
+  const header = document.getElementById('npHeaderColor').value;
+  const body   = document.getElementById('npBodyColor').value;
+  const text   = document.getElementById('npTextColor').value;
+  nodeColorMap.set(activeNodeId, { header, body, text });
+  if (currentTree) renderTree(currentTree);
+}
+
+function nodeClick(event, nodeId, nodeName) {
+  event.stopPropagation();
+  // 가지 팝업이 열려 있으면 닫기
+  closeBranchPopup();
+
+  activeNodeId = nodeId;
+  document.getElementById('npTitle').textContent = nodeName;
+
+  // 현재 저장된 색상 또는 기본값
+  const saved = nodeColorMap.get(nodeId);
+  const def   = getDefaultNodeColors(nodeId);
+  const hc = saved?.header || def.header;
+  const bc = saved?.body   || def.body;
+  const tc = saved?.text   || def.text;
+
+  setColorInput(document.getElementById('npHeaderColor'), hc);
+  document.getElementById('npHeaderHex').value = hc;
+  setColorInput(document.getElementById('npBodyColor'), bc);
+  document.getElementById('npBodyHex').value = bc;
+  setColorInput(document.getElementById('npTextColor'), tc);
+  document.getElementById('npTextHex').value = tc;
+
+  const popup = document.getElementById('nodePopup');
+  popup.classList.add('show');
+  const pw = popup.offsetWidth  || 240;
+  const ph = popup.offsetHeight || 200;
+  let px = event.clientX + 14;
+  let py = event.clientY - 20;
+  if (px + pw > window.innerWidth  - 8) px = event.clientX - pw - 8;
+  if (py + ph > window.innerHeight - 8) py = event.clientY - ph + 20;
+  if (px < 8) px = 8;
+  if (py < 8) py = 8;
+  popup.style.left = px + 'px';
+  popup.style.top  = py + 'px';
+}
+
+// color picker → hex 동기화 + 즉시 적용
+['npHeaderColor','npBodyColor','npTextColor'].forEach(id => {
+  document.getElementById(id).addEventListener('input', function() {
+    const hexId = id.replace('Color','Hex');
+    document.getElementById(hexId).value = this.value;
+    applyNpColorToMap();
+  });
+});
+
+// hex 입력 → color picker 동기화 + 즉시 적용
+['npHeaderHex','npBodyHex','npTextHex'].forEach(id => {
+  const colorId = id.replace('Hex','Color');
+  const applyHex = (val) => {
+    const norm = normalizeHex(val);
+    if (norm) {
+      setColorInput(document.getElementById(colorId), norm);
+      document.getElementById(id).value = norm;
+      applyNpColorToMap();
+    }
+  };
+  document.getElementById(id).addEventListener('change', function() { applyHex(this.value); });
+  document.getElementById(id).addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); applyHex(this.value); this.blur(); }
+  });
+});
+
+// 이 노드만 초기화
+document.getElementById('npReset').addEventListener('click', function() {
+  if (activeNodeId !== null) {
+    nodeColorMap.delete(activeNodeId);
+    // UI를 기본값으로 갱신
+    const def = getDefaultNodeColors(activeNodeId);
+    setColorInput(document.getElementById('npHeaderColor'), def.header);
+    document.getElementById('npHeaderHex').value = def.header;
+    setColorInput(document.getElementById('npBodyColor'), def.body);
+    document.getElementById('npBodyHex').value = def.body;
+    setColorInput(document.getElementById('npTextColor'), def.text);
+    document.getElementById('npTextHex').value = def.text;
+    if (currentTree) renderTree(currentTree);
+    showToast('이 노드의 색상을 초기화했습니다.');
+  }
+});
+
+// 모든 노드 색상 초기화
+document.getElementById('npResetAll').addEventListener('click', function() {
+  nodeColorMap.clear();
+  if (currentTree) renderTree(currentTree);
+  closeNodePopup();
+  showToast('모든 노드 색상을 초기화했습니다.');
+});
+
+document.getElementById('npClose').addEventListener('click', closeNodePopup);
+
+// ═══════════════════════════════════════════════════════
+// GENERATE & RENDER
+// ═══════════════════════════════════════════════════════
+function generate() {
+  hideError();
+  try {
+    const parsed = parseInput(document.getElementById('inputText').value);
+    currentTree = parsed.tree;
+    currentFormat = parsed.format;
+    document.getElementById('countValue').textContent = countNodes(currentTree);
+    document.getElementById('depthValue').textContent = treeDepth(currentTree) + '단계';
+    document.getElementById('formatValue').textContent = FORMAT_OPTIONS[currentFormat].label;
+    renderTree(currentTree);
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('chartFrame').style.display = 'block';
+    document.getElementById('smartArtPreview').value = toSmartArt(currentTree);
+  } catch(e) {
+    currentTree = null;
+    document.getElementById('smartArtPreview').value = '조직도를 생성하면 SmartArt 텍스트가 여기에 표시됩니다.';
+    showError(e.message);
+  }
+}
+
+function renderTree(tree) {
+  currentLayout = layout.layout(tree);
+  const svg = document.getElementById('chartSvg');
+  svg.setAttribute('width', currentLayout.width);
+  svg.setAttribute('height', currentLayout.height);
+  svg.setAttribute('viewBox', '0 0 ' + currentLayout.width + ' ' + currentLayout.height);
+  svg.innerHTML = buildSvg(tree, currentLayout.width, currentLayout.height);
+  applyZoom();
+}
+
+// ═══════════════════════════════════════════════════════
+// PARSE
+// ═══════════════════════════════════════════════════════
+function normalizeLines(text) {
+  return text.replace(/\r\n?/g,'\n').split('\n')
+    .map(l => l.replace(/\u00a0/g,' ').replace(/\s+$/,''))
+    .filter(l => l.trim().length > 0);
+}
+
+function detectFormat(text) {
+  const ls = normalizeLines(text);
+  if (!ls.length) return selectedFormat;
+  if (ls.some(l => l.split('\t').filter(Boolean).length >= 2)) return 'excel';
+  if (ls.some(l => /(?:^|\s)(?:>|->)(?:\s|$)/.test(l))) return 'arrow';
+  if (ls.length > 1 && ls.every(l => /^\s*[-*]\s+/.test(l))) return 'bullet';
+  return 'indent';
+}
+
+function parseToken(token) {
+  const s = token.trim();
+  const m = s.match(/^([+\-])\s+/);
+  const isA = !!m;
+  const side = m && m[1] === '-' ? 'right' : 'left';
+  const parts = s.replace(/^[+\-]\s+/,'').split('|').map(p => p.trim());
+  return { name:parts[0]||'', title:parts[1]||'', person:parts[2]||'', assistant:isA, assistantSide:side };
+}
+
+function isAssistant(token) { return /^[+\-]\s+/.test(token.trim()); }
+
+function createNode(name) { return { name, title:'', person:'', children:[], assistants:[] }; }
+
+function applyMeta(t, s) { if(!t.title&&s.title) t.title=s.title; if(!t.person&&s.person) t.person=s.person; }
+
+function mergeRoot(children) {
+  if (!children.length) throw new Error('인식할 수 있는 조직 정보가 없습니다.');
+  if (children.length === 1) return children[0];
+  const r = createNode('조직도'); r.synthetic = true; r.children = children; return r;
+}
+
+function calcIndent(raw) { let w=0; for(const c of raw){if(c===' ')w++;else if(c==='\t')w+=2;else break;} return w; }
+function resolveUnit(lines) { const ws=lines.map(calcIndent).filter(w=>w>0); if(!ws.length)return 2; return ws.reduce((m,w)=>Math.min(m,w),ws[0])||2; }
+
+function parseOutline(lines, stripBullet) {
+  const unit = resolveUnit(lines);
+  const root = createNode('__root__');
+  const stack = [{ node:root, depth:-1 }];
+  lines.forEach(line => {
+    const ind = calcIndent(line);
+    const depth = Math.floor(ind / unit);
+    let name = line.trim();
+    if (stripBullet) name = name.replace(/^[-*]\s+/,'').trim();
+    if (!name) return;
+    const tok = parseToken(name);
+    while (stack.length > 1 && stack[stack.length-1].depth >= depth) stack.pop();
+    if (tok.assistant && stack.length > 1) {
+      const a = createNode(tok.name);
+      a.assistant = true; a.assistantSide = tok.assistantSide;
+      applyMeta(a, tok);
+      stack[stack.length-1].node.assistants.push(a);
+      return;
+    }
+    const node = createNode(tok.name); applyMeta(node, tok);
+    stack[stack.length-1].node.children.push(node);
+    stack.push({ node, depth });
+  });
+  return mergeRoot(root.children);
+}
+
+function buildFromPaths(paths) {
+  const root = createNode('__root__');
+  paths.forEach(path => {
+    let cur = root;
+    path.forEach(nd => {
+      let ch = cur.children.find(c => c.name === nd.name);
+      if (!ch) { ch = createNode(nd.name); cur.children.push(ch); }
+      applyMeta(ch, nd); cur = ch;
+    });
+  });
+  return mergeRoot(root.children);
+}
+
+function parseInput(text) {
+  const lines = normalizeLines(text);
+  if (!lines.length) throw new Error('조직 구조를 입력해 주세요.');
+  const fmt = detectFormat(text);
+  if (fmt === 'arrow') return { format:fmt, tree: buildFromPaths(lines.map(l=>l.split(/\s*(?:>|->)\s*/).map(p=>parseToken(p)).filter(p=>p.name)).filter(a=>a.length)) };
+  if (fmt === 'excel') return { format:fmt, tree: buildFromPaths(lines.map(l=>l.split('\t').map(p=>parseToken(p)).filter(p=>p.name)).filter(a=>a.length)) };
+  return { format:fmt, tree: parseOutline(lines, fmt === 'bullet') };
+}
+
+function treeDepth(n) { if(!n.children.length)return 1; return 1+Math.max(...n.children.map(treeDepth)); }
+function countNodes(n) { return 1+n.assistants.length+n.children.reduce((s,c)=>s+countNodes(c),0); }
+
+// ═══════════════════════════════════════════════════════
+// SMARTART / SHEET
+// ═══════════════════════════════════════════════════════
+function toSmartArt(n, d=0) {
+  const ls = ['\t'.repeat(d)+n.name];
+  n.assistants.forEach(a => ls.push(toSmartArt(a,d+1)));
+  n.children.forEach(c => ls.push(toSmartArt(c,d+1)));
+  return ls.join('\n');
+}
+function toSheetRows(n, path=[], rows=[]) {
+  const p = [...path, n.name];
+  if (!n.children.length) { rows.push(p); return rows; }
+  n.children.forEach(c => toSheetRows(c,p,rows)); return rows;
+}
+function sheetText(rows) { return rows.map(r=>r.join('\t')).join('\n'); }
+function sheetHtml(rows) {
+  const d = Math.max(...rows.map(r=>r.length));
+  const hdr = Array.from({length:d},(_,i)=>'레벨 '+(i+1)).map(h=>'<th style="padding:8px 10px;border:1px solid #d7d0c3;background:#f6f2e9;font-weight:700;">'+ex(h)+'</th>').join('');
+  const bdy = rows.map(row=>'<tr>'+Array.from({length:d},(_,i)=>row[i]||'').map(c=>'<td style="padding:8px 10px;border:1px solid #e4ddd0;">'+ex(c)+'</td>').join('')+'</tr>').join('');
+  return '<table style="border-collapse:collapse;font-family:\'맑은 고딕\',sans-serif;font-size:11pt;"><thead><tr>'+hdr+'</tr></thead><tbody>'+bdy+'</tbody></table>';
+}
+
+// ═══════════════════════════════════════════════════════
+// ZOOM
+// ═══════════════════════════════════════════════════════
+function applyZoom(centerScroll=true) {
+  if (!currentLayout.width) return;
+  const sc = zoomScale / 100;
+  const svg = document.getElementById('chartSvg');
+  svg.style.width = Math.round(currentLayout.width * sc) + 'px';
+  svg.style.height = Math.round(currentLayout.height * sc) + 'px';
+  document.getElementById('zoomLabel').textContent = zoomScale + '%';
+  document.getElementById('zoomRange').value = zoomScale;
+  if (centerScroll) {
+    requestAnimationFrame(() => {
+      const cp = document.getElementById('canvasPanel');
+      cp.scrollLeft = Math.max(0, (cp.scrollWidth - cp.clientWidth) / 2);
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════════════
+function syncTheme() {
+  document.documentElement.style.setProperty('--app-font', FONT_PRESETS[theme.fontKey]);
+  document.documentElement.style.setProperty('--accent', theme.accent);
+  document.documentElement.style.setProperty('--accent-soft', rgba(theme.accent, 0.12));
+  document.documentElement.style.setProperty('--canvas-fill-1', rgba(theme.canvas, 0.82));
+  document.documentElement.style.setProperty('--canvas-fill-2', rgba(theme.canvas, 0.94));
+  document.documentElement.style.setProperty('--grid-color', rgba(theme.connector, 0.14));
+  layout.sibGap = theme.gapX;
+  layout.levelGap = theme.gapY;
+  // Legend dots
+  document.getElementById('legendRoot').style.background = theme.root;
+  document.getElementById('legendAssistant').style.background = theme.assistant;
+  document.getElementById('legendMid').style.background = theme.mid;
+  document.getElementById('legendLeaf').style.background = theme.leaf;
+  document.getElementById('legendConnector').style.background = theme.connector;
+}
+
+// 슬라이더 또는 숫자 입력란 어느 쪽에서 왔든 theme에 반영
+function readThemeInputs(src) {
+  theme.fontKey   = document.getElementById('fontSelect').value;
+  theme.accent    = document.getElementById('accentColor').value;
+  theme.canvas    = document.getElementById('canvasColor').value;
+  theme.connector = document.getElementById('connectorColor').value;
+  theme.root      = document.getElementById('rootNodeColor').value;
+  theme.assistant = document.getElementById('assistantNodeColor').value;
+  theme.mid       = document.getElementById('midNodeColor').value;
+  theme.leaf      = document.getElementById('leafNodeColor').value;
+
+  // 숫자 입력란이 source면 그 값을 우선; 슬라이더면 슬라이더 우선
+  const rv = (rangeId, numId, mn, mx) => {
+    const rEl = document.getElementById(rangeId);
+    const nEl = document.getElementById(numId);
+    if (!nEl) return Number(rEl.value);
+    // 어느 쪽이 이벤트 발생원인지 체크
+    const fromNum = src && (src.id === numId);
+    let v = fromNum ? Number(nEl.value) : Number(rEl.value);
+    if (isNaN(v)) v = 0;
+    // 슬라이더 ↔ 숫자 입력 동기화
+    if (fromNum) {
+      // 숫자 입력 → 슬라이더 동기화 (슬라이더 범위에 클램프)
+      rEl.value = Math.max(Number(rEl.min), Math.min(Number(rEl.max), v));
+      // v는 클램프 없이 그대로 theme에 반영 (숫자 입력 자체는 자유 입력 허용)
+    } else {
+      // 슬라이더 → 숫자 입력 동기화
+      if (document.activeElement !== nEl) nEl.value = v;
+    }
+    return v;
+  };
+
+  theme.radius    = rv('radiusRange',    'radiusNum',    0,    60);
+  theme.gapX      = rv('gapXRange',      'gapXNum',      0,   300);
+  theme.gapY      = rv('gapYRange',      'gapYNum',      0,   500);
+  theme.assistantX= rv('assistantXRange','assistantXNum',0,   300);
+  theme.assistantY= rv('assistantYRange','assistantYNum',-200,200);
+  theme.levelOneX = rv('levelOneXRange', 'levelOneXNum', -400,400);
+
+  updateThemeLabels();
+  syncTheme();
+  if (currentTree) renderTree(currentTree);
+}
+
+function writeThemeInputs() {
+  document.getElementById('fontSelect').value = theme.fontKey;
+  document.getElementById('accentColor').value = theme.accent;
+  document.getElementById('canvasColor').value = theme.canvas;
+  document.getElementById('connectorColor').value = theme.connector;
+  document.getElementById('rootNodeColor').value = theme.root;
+  document.getElementById('assistantNodeColor').value = theme.assistant;
+  document.getElementById('midNodeColor').value = theme.mid;
+  document.getElementById('leafNodeColor').value = theme.leaf;
+  // 슬라이더 + 숫자 동기화
+  const setRN = (rangeId, numId, val) => {
+    const rEl = document.getElementById(rangeId);
+    const nEl = document.getElementById(numId);
+    // 슬라이더는 min/max 범위 내로 클램프
+    rEl.value = Math.max(Number(rEl.min), Math.min(Number(rEl.max), val));
+    if (nEl) nEl.value = val;
+  };
+  setRN('radiusRange',    'radiusNum',    theme.radius);
+  setRN('gapXRange',      'gapXNum',      theme.gapX);
+  setRN('gapYRange',      'gapYNum',      theme.gapY);
+  setRN('assistantXRange','assistantXNum',theme.assistantX);
+  setRN('assistantYRange','assistantYNum',theme.assistantY);
+  setRN('levelOneXRange', 'levelOneXNum', theme.levelOneX);
+  updateThemeLabels();
+  syncTheme();
+}
+
+function updateThemeLabels() {
+  // 슬라이더와 숫자 입력란 양쪽 동기화
+  const sync = (rangeId, numId, val) => {
+    const rEl = document.getElementById(rangeId);
+    const nEl = document.getElementById(numId);
+    rEl.value = Math.max(Number(rEl.min), Math.min(Number(rEl.max), val));
+    if (nEl && document.activeElement !== nEl) nEl.value = val;
+  };
+  sync('radiusRange',    'radiusNum',    theme.radius);
+  sync('gapXRange',      'gapXNum',      theme.gapX);
+  sync('gapYRange',      'gapYNum',      theme.gapY);
+  sync('assistantXRange','assistantXNum',theme.assistantX);
+  sync('assistantYRange','assistantYNum',theme.assistantY);
+  sync('levelOneXRange', 'levelOneXNum', theme.levelOneX);
+}
+
+// ═══════════════════════════════════════════════════════
+// STORAGE
+// ═══════════════════════════════════════════════════════
+const THEME_BACKUP_KEY = 'orgChart_v4_themeBackup';
+const THEME_SLOT_MAX   = 5;
+
+function saveState() {
+  try { localStorage.setItem(APP_KEY, JSON.stringify({ inputText:document.getElementById('inputText').value, theme })); } catch {}
+}
+function loadState() {
+  try {
+    const s = localStorage.getItem(APP_KEY);
+    if (!s) return;
+    const d = JSON.parse(s);
+    if (d.inputText) document.getElementById('inputText').value = d.inputText;
+    if (d.theme) Object.assign(theme, DEFAULT_THEME, d.theme);
+  } catch {}
+}
+
+// ─── 전체 백업 슬롯 ─────────────────────────────────────
+const FB_SLOT_KEY = 'orgChart_v4_fullBackup';
+const FB_SLOT_MAX = 5;
+let activeFbSlot  = 0;
+
+/** 현재 앱 전체 상태를 직렬화 */
+function serializeFullState() {
+  return {
+    _ver: 1,
+    inputText:  document.getElementById('inputText').value,
+    theme:      Object.assign({}, theme),
+    levelSize:  levelSizeMap.map(s => ({ w: s.w, h: s.h })),
+    branchGap:  Array.from(branchGapMap.entries()),   // [[id, val], ...]
+    nodeWidth:  Array.from(nodeWidthMap.entries()),    // [[id, val], ...]
+    nodeColor:  Array.from(nodeColorMap.entries()),    // [[id, {header,body,text}], ...]
+  };
+}
+
+/** 직렬화된 데이터를 앱에 복원 (chk: 항목별 boolean) */
+function restoreFullState(data, chk) {
+  if (!data || data._ver !== 1) throw new Error('형식이 올바르지 않습니다 (_ver:1 필요).');
+
+  if (chk.text && data.inputText !== undefined) {
+    document.getElementById('inputText').value = data.inputText;
+  }
+  if (chk.theme && data.theme) {
+    Object.assign(theme, DEFAULT_THEME, data.theme);
+    writeThemeInputs();
+  }
+  if (chk.levelSize && Array.isArray(data.levelSize)) {
+    data.levelSize.forEach((s, i) => {
+      if (levelSizeMap[i]) { levelSizeMap[i].w = s.w ?? null; levelSizeMap[i].h = s.h ?? 54; }
+    });
+    buildLevelSizeUI();
+  }
+  if (chk.branch && Array.isArray(data.branchGap)) {
+    branchGapMap.clear();
+    data.branchGap.forEach(([id, v]) => branchGapMap.set(id, v));
+  }
+  if (chk.width && Array.isArray(data.nodeWidth)) {
+    nodeWidthMap.clear();
+    data.nodeWidth.forEach(([id, v]) => nodeWidthMap.set(id, v));
+  }
+  if (chk.nodeColor && Array.isArray(data.nodeColor)) {
+    nodeColorMap.clear();
+    data.nodeColor.forEach(([id, v]) => nodeColorMap.set(id, v));
+  }
+
+  hideError(); updateInputAssist(); generate();
+}
+
+function loadFbSlots() {
+  try { return JSON.parse(localStorage.getItem(FB_SLOT_KEY) || '[]'); } catch { return []; }
+}
+function saveFbSlots(slots) {
+  try { localStorage.setItem(FB_SLOT_KEY, JSON.stringify(slots)); } catch {}
+}
+
+function buildFbSlotTabs() {
+  const slots = loadFbSlots();
+  const wrap  = document.getElementById('fbSlotTabs');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  for (let i = 0; i < FB_SLOT_MAX; i++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'level-filter-btn' + (i === activeFbSlot ? ' active' : '');
+    btn.textContent = slots[i]?.name || ('슬롯 ' + (i + 1));
+    btn.style.cssText = 'min-width:60px;height:26px;font-size:11px;';
+    btn.addEventListener('click', () => {
+      activeFbSlot = i;
+      buildFbSlotTabs();
+      fillFbModal();
+    });
+    // 저장 여부 표시
+    if (slots[i]?.data) btn.style.fontWeight = '700';
+    wrap.appendChild(btn);
+  }
+}
+
+function fillFbModal() {
+  const slots = loadFbSlots();
+  const slot  = slots[activeFbSlot];
+  document.getElementById('fbText').value     = slot?.data ? JSON.stringify(slot.data, null, 2) : '';
+  document.getElementById('fbSlotName').value = slot?.name || ('슬롯 ' + (activeFbSlot + 1));
+}
+
+function openFullBackupModal() {
+  buildFbSlotTabs();
+  fillFbModal();
+  openModal(document.getElementById('fullBackupModal'));
+}
+
+// ─── 테마 슬롯 저장/불러오기 ───────────────────────────
+function loadThemeSlots() {
+  try { return JSON.parse(localStorage.getItem(THEME_BACKUP_KEY) || '[]'); } catch { return []; }
+}
+function saveThemeSlots(slots) {
+  try { localStorage.setItem(THEME_BACKUP_KEY, JSON.stringify(slots)); } catch {}
+}
+
+// 현재 선택 슬롯 인덱스
+let activeThemeSlot = 0;
+
+function buildThemeSlotTabs() {
+  const slots = loadThemeSlots();
+  const wrap  = document.getElementById('themeSlotTabs');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  for (let i = 0; i < THEME_SLOT_MAX; i++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'level-filter-btn' + (i === activeThemeSlot ? ' active' : '');
+    const label = slots[i]?.name || ('슬롯 ' + (i + 1));
+    btn.textContent = label;
+    btn.style.cssText = 'min-width:62px;height:26px;font-size:11px;';
+    btn.addEventListener('click', () => {
+      activeThemeSlot = i;
+      buildThemeSlotTabs();        // 탭 갱신
+      fillThemeBackupModal();      // 텍스트 영역 갱신
+    });
+    wrap.appendChild(btn);
+  }
+}
+
+function fillThemeBackupModal() {
+  const slots = loadThemeSlots();
+  const slot  = slots[activeThemeSlot];
+  document.getElementById('themeBackupText').value =
+    slot?.data ? JSON.stringify(slot.data, null, 2) : '';
+  document.getElementById('themeSlotName').value =
+    slot?.name || ('슬롯 ' + (activeThemeSlot + 1));
+}
+
+function openThemeBackupModal() {
+  buildThemeSlotTabs();
+  fillThemeBackupModal();
+  openModal(document.getElementById('themeBackupModal'));
+}
+
+// ═══════════════════════════════════════════════════════
+// LEVEL PREVIEW
+// ═══════════════════════════════════════════════════════
+function getPreviewEntries(text) {
+  const rawLines = text.replace(/\r\n?/g,'\n').split('\n');
+  const nonEmpty = rawLines.filter(l=>l.trim().length>0);
+  if (!nonEmpty.length) return [];
+  const fmt = detectFormat(text);
+  const unit = resolveUnit(nonEmpty);
+  return rawLines.filter(l=>l.trim().length>0).map((raw,i) => {
+    let depth=0, label=raw.trim(), asst=false;
+    if (fmt==='excel') {
+      const ps=raw.split('\t').map(p=>parseToken(p)).filter(p=>p.name);
+      depth=Math.max(0,ps.length-1); label=ps.length?getLabel(ps[ps.length-1]):label;
+    } else if (fmt==='arrow') {
+      const ps=raw.split(/\s*(?:>|->)\s*/).map(p=>parseToken(p)).filter(p=>p.name);
+      depth=Math.max(0,ps.length-1); label=ps.length?getLabel(ps[ps.length-1]):label;
+    } else {
+      depth=Math.floor(calcIndent(raw)/unit);
+      const txt=fmt==='bullet'?raw.trim().replace(/^[-*]\s+/,''):raw.trim();
+      const tok=parseToken(txt); label=getLabel(tok); asst=tok.assistant;
+      if (asst) depth=Math.max(0,depth-0.5);
+    }
+    return {depth,label,asst};
+  });
+}
+function getLabel(n) { const e=[n.title,n.person].filter(Boolean); return e.length?n.name+' | '+e.join(' | '):n.name; }
+
+function renderLevelPreview(text) {
+  const entries = getPreviewEntries(text).filter(e=>activePreviewLevels.has(Math.min(3,Math.floor(e.depth))));
+  const el = document.getElementById('levelPreview');
+  if (!entries.length) { el.innerHTML='<div class="level-empty">입력을 시작하면 계층이 표시됩니다.</div>'; return; }
+  el.innerHTML = entries.map(e => {
+    const pad = 8 + Math.min(e.depth,6)*18;
+    const badge = e.asst ? '보조' : 'L'+(Math.floor(e.depth)+1);
+    return '<div class="level-item" style="padding-left:'+pad+'px;"><span class="level-badge">'+badge+'</span><span class="level-label">'+ex(e.label)+'</span></div>';
+  }).join('');
+}
+
+function updateInputAssist() {
+  renderLevelPreview(document.getElementById('inputText').value);
+  try { document.getElementById('smartArtPreview').value = toSmartArt(parseInput(document.getElementById('inputText').value).tree); }
+  catch { document.getElementById('smartArtPreview').value = '조직도를 생성하면 SmartArt 텍스트가 여기에 표시됩니다.'; }
+}
+
+// ═══════════════════════════════════════════════════════
+// COPY / EXPORT
+// ═══════════════════════════════════════════════════════
+async function writeClip(payload) {
+  if (navigator.clipboard && window.ClipboardItem) {
+    const cp = {};
+    Object.entries(payload).forEach(([t,v]) => { cp[t]=new Blob([v],{type:t}); });
+    await navigator.clipboard.write([new ClipboardItem(cp)]); return;
+  }
+  if (payload['text/plain']) { const ta=document.createElement('textarea'); ta.value=payload['text/plain']; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); return; }
+  throw new Error('클립보드 복사를 지원하지 않습니다.');
+}
+async function writeText(t) { if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(t);return;} const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta); }
+
+async function busy(btn, fn) {
+  const orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 처리 중';
+  try { await fn(); return true; } catch(e) { showToast(e.message); return false; }
+  finally { btn.disabled=false; btn.innerHTML=orig; }
+}
+
+function exportSvg() {
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+currentLayout.width+'" height="'+currentLayout.height+'" viewBox="0 0 '+currentLayout.width+' '+currentLayout.height+'"><rect width="100%" height="100%" fill="#ffffff"/>'+buildSvg(currentTree,currentLayout.width,currentLayout.height)+'</svg>';
+}
+
+async function svgToCanvas(scale) {
+  const blob = new Blob([exportSvg()],{type:'image/svg+xml;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('이미지 변환 실패'));i.src=url;});
+    const c = document.createElement('canvas');
+    c.width = Math.ceil(currentLayout.width*scale); c.height = Math.ceil(currentLayout.height*scale);
+    const ctx = c.getContext('2d'); ctx.scale(scale,scale); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,currentLayout.width,currentLayout.height); ctx.drawImage(img,0,0,currentLayout.width,currentLayout.height);
+    return c;
+  } finally { URL.revokeObjectURL(url); }
+}
+
+function dlBlob(blob,name) { const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u); }
+
+async function copySmartArt() { if(!currentTree){showToast('먼저 조직도를 생성해 주세요.');return;} const ok=await busy(document.getElementById('smartArtCopyBtn'),async()=>await writeText(toSmartArt(currentTree).replace(/\n/g,'\r\n'))); if(ok){document.getElementById('smartArtCopyBtn').classList.add('is-success');showToast('SmartArt 텍스트가 복사되었습니다.');setTimeout(()=>document.getElementById('smartArtCopyBtn').classList.remove('is-success'),1800);} }
+async function copySheet() { if(!currentTree){showToast('먼저 조직도를 생성해 주세요.');return;} const rows=toSheetRows(currentTree); const ok=await busy(document.getElementById('sheetCopyBtn'),async()=>await writeClip({'text/plain':sheetText(rows),'text/html':sheetHtml(rows)})); if(ok){document.getElementById('sheetCopyBtn').classList.add('is-success');showToast('Excel 데이터가 복사되었습니다.');setTimeout(()=>document.getElementById('sheetCopyBtn').classList.remove('is-success'),1800);} }
+async function copyImage() { if(!currentTree){showToast('먼저 조직도를 생성해 주세요.');return;} const ok=await busy(document.getElementById('imageCopyBtn'),async()=>{const c=await svgToCanvas(2);const b=await new Promise(r=>c.toBlob(r,'image/png'));if(!b)throw new Error('PNG 생성 실패');if(navigator.clipboard&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);}else{dlBlob(b,'조직도.png');showToast('클립보드 권한 없음 → PNG 저장됨');}});if(ok){document.getElementById('imageCopyBtn').classList.add('is-success');showToast('이미지가 복사되었습니다.');setTimeout(()=>document.getElementById('imageCopyBtn').classList.remove('is-success'),1800);} }
+async function downloadPng() { if(!currentTree){showToast('먼저 조직도를 생성해 주세요.');return;} const ok=await busy(document.getElementById('pngBtn'),async()=>{const c=await svgToCanvas(2);const b=await new Promise(r=>c.toBlob(r,'image/png'));if(!b)throw new Error('PNG 생성 실패');dlBlob(b,'조직도.png');});if(ok){document.getElementById('pngBtn').classList.add('is-success');showToast('PNG 파일이 저장되었습니다.');setTimeout(()=>document.getElementById('pngBtn').classList.remove('is-success'),1800);} }
+
+// ═══════════════════════════════════════════════════════
+// LEVEL SIZE UI
+// ═══════════════════════════════════════════════════════
+const LEVEL_LABELS = ['L1 (대표)', 'L2 (중간)', 'L3 (하위)', 'L4+'];
+
+function buildLevelSizeUI() {
+  const grid = document.getElementById('levelSizeGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  // 헤더
+  const hdr = document.createElement('div');
+  hdr.className = 'level-size-header';
+  hdr.innerHTML = '<span></span><span>너비 (px)</span><span>높이 (px)</span>';
+  grid.appendChild(hdr);
+
+  ['L1','L2','L3','L4'].forEach((lbl, i) => {
+    const fullLabel = ['L1 (대표)', 'L2 (중간)', 'L3 (하위)', 'L4+'][i];
+    const row = document.createElement('div');
+    row.className = 'level-size-row';
+
+    // 뱃지
+    const badge = document.createElement('span');
+    badge.className = 'level-size-badge';
+    badge.textContent = lbl;
+
+    // 가로 셀
+    const wCell = document.createElement('div');
+    wCell.className = 'level-size-cell';
+    const wNum = document.createElement('input');
+    wNum.type = 'number'; wNum.className = 'level-size-num';
+    wNum.min = 60; wNum.max = 600; wNum.step = 4;
+    wNum.placeholder = '자동';
+    wNum.value = levelSizeMap[i].w !== null ? levelSizeMap[i].w : '';
+    wNum.title = fullLabel + ' 가로 너비 (비워두면 자동)';
+    wCell.appendChild(wNum);
+
+    // 세로 셀
+    const hCell = document.createElement('div');
+    hCell.className = 'level-size-cell';
+    const hNum = document.createElement('input');
+    hNum.type = 'number'; hNum.className = 'level-size-num';
+    hNum.min = 24; hNum.max = 300; hNum.step = 2;
+    hNum.placeholder = '54';
+    hNum.value = levelSizeMap[i].h !== null && levelSizeMap[i].h !== 54 ? levelSizeMap[i].h : '';
+    hNum.title = fullLabel + ' 세로 높이';
+    hCell.appendChild(hNum);
+
+    // 이벤트
+    const update = () => {
+      levelSizeMap[i].w = wNum.value.trim() === '' ? null : Math.max(60, Number(wNum.value));
+      levelSizeMap[i].h = hNum.value.trim() === '' ? 54  : Math.max(24, Number(hNum.value));
+      if (currentTree) renderTree(currentTree);
+    };
+    wNum.addEventListener('change', update);
+    wNum.addEventListener('keydown', e => { if (e.key==='Enter') { e.preventDefault(); update(); wNum.blur(); } });
+    hNum.addEventListener('change', update);
+    hNum.addEventListener('keydown', e => { if (e.key==='Enter') { e.preventDefault(); update(); hNum.blur(); } });
+
+    row.appendChild(badge);
+    row.appendChild(wCell);
+    row.appendChild(hCell);
+    grid.appendChild(row);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// FORMAT BUTTONS
+// ═══════════════════════════════════════════════════════
+function buildFormatButtons() {
+  // 입력 형식 위젯이 제거되어 DOM이 없을 수 있으므로 방어 처리
+  const wrap = document.getElementById('formatButtons');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  Object.entries(FORMAT_OPTIONS).forEach(([key,val]) => {
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'format-btn';
+    btn.dataset.format = key;
+    btn.innerHTML = '<strong>'+ex(val.label)+'</strong>';
+    btn.addEventListener('click', () => {
+      selectedFormat = key;
+      document.getElementById('inputText').value = val.example;
+      const eb = document.getElementById('exampleBox');
+      if (eb) eb.textContent = val.example;
+      wrap.querySelectorAll('.format-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      hideError(); updateInputAssist(); generate();
+    });
+    wrap.appendChild(btn);
+  });
+  wrap.querySelector('[data-format="indent"]')?.classList.add('active');
+  const eb = document.getElementById('exampleBox');
+  if (eb) eb.textContent = FORMAT_OPTIONS.indent.example;
+}
+
+// ═══════════════════════════════════════════════════════
+// CANVAS DRAG
+// ═══════════════════════════════════════════════════════
+function initCanvasDrag() {
+  const cp = document.getElementById('canvasPanel');
+  let pending = false;   // pointerdown 후 아직 threshold 미달
+  let scrolling = false; // threshold 초과 → 실제 드래그 중
+  let capturedId = null;
+  let sx=0, sy=0, sl=0, st=0;
+  const THRESH = 5;
+
+  cp.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    pending = true; scrolling = false;
+    sx = e.clientX; sy = e.clientY;
+    sl = cp.scrollLeft; st = cp.scrollTop;
+    capturedId = e.pointerId;
+  });
+
+  cp.addEventListener('pointermove', e => {
+    if (!pending && !scrolling) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!scrolling && Math.hypot(dx, dy) > THRESH) {
+      // threshold 넘으면 드래그 확정 + 캡처
+      scrolling = true;
+      pending = false;
+      cp.classList.add('is-dragging');
+      try { cp.setPointerCapture(capturedId); } catch(_) {}
+    }
+    if (scrolling) {
+      cp.scrollLeft = sl - (e.clientX - sx);
+      cp.scrollTop  = st - (e.clientY - sy);
+    }
+  });
+
+  let wasDragging = false; // pointerup 직후 click 이벤트 차단용
+
+  const stop = e => {
+    if (!pending && !scrolling) return;
+    pending = false;
+    if (scrolling) {
+      wasDragging = true;
+      scrolling = false;
+      cp.classList.remove('is-dragging');
+      try { if (cp.hasPointerCapture(e.pointerId)) cp.releasePointerCapture(e.pointerId); } catch(_) {}
+    }
+    capturedId = null;
+  };
+  cp.addEventListener('pointerup', stop);
+  cp.addEventListener('pointercancel', stop);
+
+  // 드래그 후 발생하는 click 이벤트를 차단 (branchClick 오발 방지)
+  cp.addEventListener('click', e => {
+    if (wasDragging) {
+      wasDragging = false;
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  }, true); // capture phase에서 차단
+}
+
+// ═══════════════════════════════════════════════════════
+// MISC HELPERS
+// ═══════════════════════════════════════════════════════
+function showError(m) { const e=document.getElementById('errorBox'); e.textContent=m; e.style.display='block'; }
+function hideError() { const e=document.getElementById('errorBox'); e.style.display='none'; e.textContent=''; }
+let _toastT = null;
+function showToast(m) { const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(_toastT); _toastT=setTimeout(()=>t.classList.remove('show'),3200); }
+function openModal(m) { m.classList.add('show'); }
+function closeModal(m) { if(m) m.classList.remove('show'); }
+
+function handleTabIndent(isOut) {
+  const inp = document.getElementById('inputText');
+  const val=inp.value, s=inp.selectionStart, e=inp.selectionEnd;
+  const ls=val.lastIndexOf('\n',s-1)+1, le=val.indexOf('\n',e), se=le===-1?val.length:le;
+  const block=val.slice(ls,se).split('\n');
+  const upd=isOut?block.map(l=>l.startsWith('  ')?l.slice(2):l.startsWith('\t')?l.slice(1):l.startsWith(' ')?l.slice(1):l).join('\n'):block.map(l=>'  '+l).join('\n');
+  inp.value=val.slice(0,ls)+upd+val.slice(se); inp.selectionStart=ls; inp.selectionEnd=ls+upd.length;
+  updateInputAssist(); scheduleRender();
+}
+
+function scheduleRender() { clearTimeout(inputRenderTimer); inputRenderTimer=setTimeout(generate,180); }
+
+// ═══════════════════════════════════════════════════════
+// INIT & BIND EVENTS
+// ═══════════════════════════════════════════════════════
+function init() {
+  buildFormatButtons();
+  buildLevelSizeUI();
+  loadState();
+  writeThemeInputs();
+  savedInputText = document.getElementById('inputText').value;
+  savedTheme = Object.assign({}, theme);
+
+  // Input events
+  document.getElementById('inputText').addEventListener('keydown', e => {
+    if (e.key==='Tab') { e.preventDefault(); handleTabIndent(e.shiftKey); return; }
+    if (e.ctrlKey && e.key==='Enter') { e.preventDefault(); generate(); }
+  });
+  document.getElementById('inputText').addEventListener('input', () => {
+    const fmt = detectFormat(document.getElementById('inputText').value);
+    document.getElementById('formatValue').textContent = FORMAT_OPTIONS[fmt]?.label || '';
+    updateInputAssist(); scheduleRender();
+  });
+
+  // Buttons
+  document.getElementById('saveInputBtn').addEventListener('click', () => { savedInputText=document.getElementById('inputText').value; savedTheme=Object.assign({},theme); saveState(); showToast('저장했습니다.'); });
+  document.getElementById('undoInputBtn').addEventListener('click', () => { document.getElementById('inputText').value=savedInputText; hideError(); updateInputAssist(); generate(); showToast('저장 시점으로 돌아갔습니다.'); });
+  document.getElementById('sampleBtn').addEventListener('click', () => {
+    const SAMPLE_DATA = {"_ver":1,"inputText":"CEO | 회장 | 정기로\n  + 전략자문 |  | \n  신소재사업실 | 상무 | 이태훈\n    Global Sourcing | 담당 | 김원희\n    Eco-AI Mgmt | 담당 | 서정오\n   전략기획본부 | 부사장 | 구본준\n    비전전략실 |  | \n    경영기획실 |  |\n      비서\n      경영기획팀\n      회계팀\n      IT전략팀\n    경영지원실 | 부사장 | 구본준\n      인사팀\n      총무팀\n  정도경영 | 전무 | 진대규\n  ESG팀 | 담당 | 서유리","theme":{"fontKey":"malgun","accent":"#2457d6","canvas":"#ffffff","connector":"#c7beae","root":"#253247","assistant":"#253247","mid":"#e9efff","leaf":"#eefaf1","radius":0,"gapX":28,"gapY":140,"assistantX":112,"assistantY":18,"levelOneX":31},"levelSize":[{"w":null,"h":54},{"w":null,"h":54},{"w":null,"h":54},{"w":null,"h":54}],"branchGap":[["0",234],["1",336],["14",300],["15",300],["2",140]],"nodeWidth":[]};
+    try {
+      restoreFullState(SAMPLE_DATA, { text:true, theme:true, levelSize:true, branch:true, width:true, nodeColor:false });
+      showToast('예시 조직도를 불러왔습니다.');
+    } catch(e) {
+      showToast('예시 불러오기 실패: ' + e.message);
+    }
+  });
+  document.getElementById('sidebarToggleBtn').addEventListener('click', () => {
+    const shell = document.getElementById('appShell');
+    const exp = shell.classList.toggle('sidebar-wide');
+    document.getElementById('sidebarToggleBtn').textContent = exp ? '축소' : '확장';
+    requestAnimationFrame(()=>{ if(currentTree)applyZoom(false); });
+  });
+
+  // Level filter
+  document.getElementById('levelFilter').addEventListener('click', e => {
+    const btn = e.target.closest('.level-filter-btn');
+    if (!btn) return;
+    const lv = Number(btn.dataset.level);
+    if (activePreviewLevels.has(lv)) activePreviewLevels.delete(lv); else activePreviewLevels.add(lv);
+    btn.classList.toggle('active', activePreviewLevels.has(lv));
+    renderLevelPreview(document.getElementById('inputText').value);
+  });
+
+  // Zoom
+  document.getElementById('zoomRange').addEventListener('input', function() { zoomScale=Math.max(40,Math.min(190,Number(this.value))); applyZoom(false); });
+
+  // Toolbar actions
+  document.getElementById('smartArtCopyBtn').addEventListener('click', copySmartArt);
+  document.getElementById('sheetCopyBtn').addEventListener('click', copySheet);
+  document.getElementById('imageCopyBtn').addEventListener('click', copyImage);
+  document.getElementById('pngBtn').addEventListener('click', downloadPng);
+
+  // 전체 백업/복구
+  document.getElementById('fullBackupBtn').addEventListener('click', openFullBackupModal);
+
+  document.getElementById('fbExportBtn').addEventListener('click', () => {
+    document.getElementById('fbText').value = JSON.stringify(serializeFullState(), null, 2);
+    showToast('현재 상태를 텍스트로 변환했습니다.');
+  });
+
+  document.getElementById('fbSaveSlotBtn').addEventListener('click', () => {
+    const slots = loadFbSlots();
+    while (slots.length < FB_SLOT_MAX) slots.push(null);
+    const name  = document.getElementById('fbSlotName').value.trim() || ('슬롯 ' + (activeFbSlot + 1));
+    slots[activeFbSlot] = { name, data: serializeFullState() };
+    saveFbSlots(slots);
+    buildFbSlotTabs();
+    showToast('"' + name + '"에 저장했습니다.');
+  });
+
+  document.getElementById('fbCopyBtn').addEventListener('click', async () => {
+    const txt = document.getElementById('fbText').value.trim();
+    if (!txt) {
+      // 텍스트 없으면 먼저 직렬화
+      document.getElementById('fbText').value = JSON.stringify(serializeFullState(), null, 2);
+    }
+    try {
+      await writeText(document.getElementById('fbText').value);
+      showToast('클립보드에 복사했습니다.');
+    } catch { showToast('복사 실패 — 텍스트를 직접 선택해 복사하세요.'); }
+  });
+
+  document.getElementById('fbRestoreBtn').addEventListener('click', () => {
+    try {
+      const raw = document.getElementById('fbText').value.trim();
+      if (!raw) { showToast('텍스트가 비어 있습니다.'); return; }
+      const data = JSON.parse(raw);
+      const chk  = {
+        text:      document.getElementById('fbChkText').checked,
+        theme:     document.getElementById('fbChkTheme').checked,
+        levelSize: document.getElementById('fbChkLevelSize').checked,
+        branch:    document.getElementById('fbChkBranch').checked,
+        width:     document.getElementById('fbChkWidth').checked,
+        nodeColor: document.getElementById('fbChkNodeColor').checked,
+      };
+      restoreFullState(data, chk);
+      closeModal(document.getElementById('fullBackupModal'));
+      showToast('복구가 완료되었습니다.');
+    } catch(e) {
+      showToast('오류: ' + e.message);
+    }
+  });
+
+  // Theme controls
+  // 슬라이더 input 이벤트
+  ['fontSelect','accentColor','canvasColor','connectorColor','rootNodeColor','assistantNodeColor','midNodeColor','leafNodeColor',
+   'radiusRange','gapXRange','gapYRange','assistantXRange','assistantYRange','levelOneXRange'
+  ].forEach(id => document.getElementById(id).addEventListener('input', function() { readThemeInputs(this); }));
+
+  // 숫자 입력란 change/input 이벤트 (직접 입력 지원)
+  ['radiusNum','gapXNum','gapYNum','assistantXNum','assistantYNum','levelOneXNum'
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', function() { readThemeInputs(this); });
+    el.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); readThemeInputs(this); this.blur(); } });
+  });
+
+  document.getElementById('saveThemeBtn').addEventListener('click', () => { savedTheme=Object.assign({},theme); saveState(); showToast('테마가 저장되었습니다.'); });
+  document.getElementById('undoThemeBtn').addEventListener('click', () => { Object.assign(theme,savedTheme); writeThemeInputs(); if(currentTree)renderTree(currentTree); showToast('저장된 테마로 복원했습니다.'); });
+  document.getElementById('themeResetBtn').addEventListener('click', () => { Object.assign(theme,DEFAULT_THEME); writeThemeInputs(); if(currentTree)renderTree(currentTree); showToast('기본값으로 복원했습니다.'); });
+  document.getElementById('themeBackupBtn').addEventListener('click', openThemeBackupModal);
+
+  // 테마 백업 모달 내부 버튼
+  document.getElementById('themeExportBtn').addEventListener('click', () => {
+    document.getElementById('themeBackupText').value = JSON.stringify(theme, null, 2);
+    showToast('현재 테마를 텍스트로 변환했습니다. 복사하세요.');
+  });
+
+  document.getElementById('themeSaveSlotBtn').addEventListener('click', () => {
+    const slots = loadThemeSlots();
+    while (slots.length < THEME_SLOT_MAX) slots.push(null);
+    const name = document.getElementById('themeSlotName').value.trim() || ('슬롯 ' + (activeThemeSlot + 1));
+    slots[activeThemeSlot] = { name, data: Object.assign({}, theme) };
+    saveThemeSlots(slots);
+    buildThemeSlotTabs();
+    showToast('"' + name + '"에 저장했습니다.');
+  });
+
+  document.getElementById('themeRestoreBtn').addEventListener('click', () => {
+    try {
+      const raw = document.getElementById('themeBackupText').value.trim();
+      if (!raw) { showToast('텍스트가 비어 있습니다.'); return; }
+      const parsed = JSON.parse(raw);
+      Object.assign(theme, DEFAULT_THEME, parsed);
+      writeThemeInputs();
+      if (currentTree) renderTree(currentTree);
+      closeModal(document.getElementById('themeBackupModal'));
+      showToast('테마를 복구했습니다.');
+    } catch {
+      showToast('JSON 형식이 올바르지 않습니다.');
+    }
+  });
+
+  // Modals
+  document.getElementById('manualBtn').addEventListener('click', () => openModal(document.getElementById('manualModal')));
+  document.getElementById('backupBtn').addEventListener('click', () => { document.getElementById('backupText').value=document.getElementById('inputText').value; openModal(document.getElementById('backupModal')); });
+  document.getElementById('makeBackupBtn').addEventListener('click', () => { document.getElementById('backupText').value=document.getElementById('inputText').value; try{localStorage.setItem(BACKUP_KEY,document.getElementById('backupText').value);}catch{} showToast('백업했습니다.'); });
+  document.getElementById('restoreBackupBtn').addEventListener('click', () => { document.getElementById('inputText').value=document.getElementById('backupText').value; closeModal(document.getElementById('backupModal')); hideError(); updateInputAssist(); generate(); showToast('복구했습니다.'); });
+  document.querySelectorAll('[data-close-modal]').forEach(btn => btn.addEventListener('click', () => closeModal(btn.closest('.modal-backdrop'))));
+  document.querySelectorAll('.modal-backdrop').forEach(m => m.addEventListener('click', e => { if(e.target===m)closeModal(m); }));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      closeModal(document.getElementById('manualModal'));
+      closeModal(document.getElementById('backupModal'));
+      closeModal(document.getElementById('themeBackupModal'));
+      closeModal(document.getElementById('fullBackupModal'));
+      closeBranchPopup();
+      closeNodePopup();
+    }
+  });
+
+  // 노드 크기 초기화 버튼
+  document.getElementById('resetAllNodeSizeBtn').addEventListener('click', function() {
+    nodeWidthMap.clear();
+    levelSizeMap.forEach((s, i) => { s.w = DEFAULT_LEVEL_SIZE[i].w; s.h = DEFAULT_LEVEL_SIZE[i].h; });
+    buildLevelSizeUI();
+    if (currentTree) renderTree(currentTree);
+    showToast('모든 노드 크기를 초기화했습니다.');
+  });
+
+  initCanvasDrag();
+  window.addEventListener('resize', () => { if(currentTree)renderTree(currentTree); });
+
+  updateInputAssist();
+  generate();
+}
+
+init();
+</script>
+</body>
+</html>
