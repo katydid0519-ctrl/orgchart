@@ -212,6 +212,9 @@ button{white-space:nowrap;}
 .level-add-btn{min-width:58px;justify-content:center;}
 .level-add-btn span{font-size:11px;color:var(--muted);}
 .level-add-btn:hover span{color:var(--accent);}
+.assistant-add-btn{min-width:78px;justify-content:center;}
+.assistant-add-btn span{font-size:11px;color:var(--muted);}
+.assistant-add-btn:hover span{color:var(--accent);}
 .toolbar-btn.is-success{border-color:#9ad7b2;color:var(--success);background:var(--success-soft);}
 .toolbar-btn:disabled{opacity:.55;cursor:not-allowed;}
 .level-panel{
@@ -483,9 +486,11 @@ button{white-space:nowrap;}
   overflow:visible;
   max-width:none;
 }
-.org-node{cursor:pointer;outline:none;}
+.org-node{cursor:grab;outline:none;}
+.org-node:active{cursor:grabbing;}
 .org-node:hover rect:first-child,
 .org-node:focus-visible rect:first-child{stroke:var(--accent);stroke-width:2.4;}
+.canvas-panel.is-node-dragging{cursor:grabbing;}
 .toast{
   position:fixed;right:24px;bottom:24px;padding:12px 16px;border-radius:14px;background:#1f2937;color:#fff;
   font-size:13px;line-height:1.5;box-shadow:0 18px 32px rgba(0,0,0,.18);opacity:0;transform:translateY(8px);
@@ -684,6 +689,10 @@ button{white-space:nowrap;}
           <button class="toolbar-btn level-add-btn" type="button" data-add-level="1"><strong>L2</strong><span>&#52628;&#44032;</span></button>
           <button class="toolbar-btn level-add-btn" type="button" data-add-level="2"><strong>L3</strong><span>&#52628;&#44032;</span></button>
           <button class="toolbar-btn level-add-btn" type="button" data-add-level="3"><strong>L4</strong><span>&#52628;&#44032;</span></button>
+        </div>
+        <div class="level-create-group" aria-label="&#48372;&#51312; &#51312;&#51649; &#52628;&#44032;">
+          <button class="toolbar-btn assistant-add-btn" type="button" data-add-assistant="left"><strong>+ &#50812;&#51901;</strong><span>&#52628;&#44032;</span></button>
+          <button class="toolbar-btn assistant-add-btn" type="button" data-add-assistant="right"><strong>- &#50724;&#47480;&#51901;</strong><span>&#52628;&#44032;</span></button>
         </div>
         <button class="toolbar-btn" type="button" id="smartArtCopyBtn"><strong>SmartArt</strong></button>
         <button class="toolbar-btn" type="button" id="sheetCopyBtn"><strong>Excel</strong></button>
@@ -1131,6 +1140,7 @@ const els = {
   chartFrame: document.getElementById("chartFrame"),
   chartSvg: document.getElementById("chartSvg"),
   levelAddBtns: Array.from(document.querySelectorAll("[data-add-level]")),
+  assistantAddBtns: Array.from(document.querySelectorAll("[data-add-assistant]")),
   smartArtCopyBtn: document.getElementById("smartArtCopyBtn"),
   sheetCopyBtn: document.getElementById("sheetCopyBtn"),
   imageCopyBtn: document.getElementById("imageCopyBtn"),
@@ -1324,6 +1334,12 @@ let savedInputText = "";
 let savedTheme = null;
 let inputRenderTimer = null;
 let editingNodeId = null;
+let nodeDragState = null;
+let suppressNodeClick = false;
+let isRestoringUndo = false;
+let themeUndoArmed = false;
+const undoStack = [];
+const MAX_UNDO_STEPS = 80;
 const activePreviewLevels = new Set([0, 1, 2, 3]);
 const theme = { ...DEFAULT_THEME };
 const layout = new TreeLayout();
@@ -1364,6 +1380,7 @@ initThemeControls();
 normalizeAssistantControlLabels();
 bindEvents();
 generate();
+updateUndoButtons();
 queueWelcomePrompt();
 
 function buildFormatButtons() {
@@ -1398,6 +1415,103 @@ function cloneTheme(source = theme) {
   next.branchGapX = normalizeNumberArray(next.branchGapX, DEFAULT_THEME.branchGapX);
   next.branchJointY = normalizeNumberArray(next.branchJointY, DEFAULT_THEME.branchJointY);
   return next;
+}
+
+function cloneTreeState(tree) {
+  return tree ? JSON.parse(JSON.stringify(tree)) : null;
+}
+
+function getUndoSnapshot() {
+  return {
+    inputText: els.inputText.value,
+    theme: cloneTheme(theme),
+    tree: cloneTreeState(currentTree),
+    format: currentFormat,
+    selectedFormat,
+    layout: { ...currentLayout },
+    zoomScale
+  };
+}
+
+function getUndoSignature(snapshot) {
+  return JSON.stringify({
+    inputText: snapshot.inputText,
+    theme: snapshot.theme,
+    tree: snapshot.tree,
+    format: snapshot.format,
+    selectedFormat: snapshot.selectedFormat,
+    layout: snapshot.layout,
+    zoomScale: snapshot.zoomScale
+  });
+}
+
+function updateUndoButtons() {
+  const disabled = undoStack.length === 0;
+  els.undoInputBtn.disabled = disabled;
+  els.undoThemeBtn.disabled = disabled;
+}
+
+function pushUndoState() {
+  if (isRestoringUndo) return;
+  const snapshot = getUndoSnapshot();
+  const signature = getUndoSignature(snapshot);
+  const previous = undoStack[undoStack.length - 1];
+  if (previous && previous.signature === signature) {
+    return;
+  }
+  undoStack.push({ ...snapshot, signature });
+  if (undoStack.length > MAX_UNDO_STEPS) {
+    undoStack.shift();
+  }
+  updateUndoButtons();
+}
+
+function restoreChartFromSnapshot(snapshot) {
+  currentTree = cloneTreeState(snapshot.tree);
+  currentFormat = snapshot.format || detectFormat(snapshot.inputText || "");
+  currentLayout = snapshot.layout && snapshot.layout.width ? { ...snapshot.layout } : { width: 0, height: 0 };
+  if (!currentTree) {
+    generate();
+    return;
+  }
+  assignNodeEditIds(currentTree);
+  if (!currentLayout.width || !currentLayout.height) {
+    currentLayout = layout.layout(currentTree);
+  }
+  els.countValue.textContent = String(countNodes(currentTree));
+  els.depthValue.textContent = getTreeDepth(currentTree) + TEXT.step;
+  els.formatValue.textContent = FORMAT_OPTIONS[currentFormat]?.label || FORMAT_OPTIONS.indent.label;
+  els.toolbarNote.textContent = TEXT.note;
+  els.emptyState.style.display = "none";
+  els.chartFrame.style.display = "block";
+  els.chartSvg.setAttribute("width", currentLayout.width);
+  els.chartSvg.setAttribute("height", currentLayout.height);
+  els.chartSvg.setAttribute("viewBox", "0 0 " + currentLayout.width + " " + currentLayout.height);
+  els.chartSvg.innerHTML = buildChartSvg(currentTree, currentLayout.width, currentLayout.height);
+  els.smartArtPreview.value = toSmartArtText(currentTree);
+  applyZoom(false);
+}
+
+function undoLastStep() {
+  const snapshot = undoStack.pop();
+  if (!snapshot) {
+    showToast("\uB418\uB3CC\uB9B4 \uB0B4\uC6A9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.");
+    updateUndoButtons();
+    return;
+  }
+  isRestoringUndo = true;
+  els.inputText.value = snapshot.inputText || "";
+  applyThemeState(snapshot.theme);
+  setFormat(snapshot.selectedFormat || snapshot.format || "indent");
+  currentFormat = snapshot.format || selectedFormat;
+  zoomScale = snapshot.zoomScale || 100;
+  initThemeControls();
+  hideError();
+  updateInputAssist();
+  restoreChartFromSnapshot(snapshot);
+  isRestoringUndo = false;
+  updateUndoButtons();
+  showToast("\uD55C \uB2E8\uACC4 \uB418\uB3CC\uC558\uC2B5\uB2C8\uB2E4.");
 }
 
 function applyThemeState(nextTheme) {
@@ -1475,6 +1589,7 @@ async function loadExampleState() {
 
 async function openExampleState() {
   const state = await loadExampleState();
+  pushUndoState();
   applyState(state);
   hideError();
   updateInputAssist();
@@ -1625,6 +1740,7 @@ function bindEvents() {
     }
   });
   els.restoreBackupBtn.addEventListener("click", () => {
+    pushUndoState();
     restoreBackupPayload(els.backupText.value);
     hideError();
     updateInputAssist();
@@ -1671,6 +1787,7 @@ function bindEvents() {
     }
   });
   bindCanvasDrag();
+  bindNodeDrag();
   els.chartSvg.addEventListener("click", (event) => handleChartNodeActivation(event.target));
   els.chartSvg.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
@@ -1680,16 +1797,15 @@ function bindEvents() {
   els.levelAddBtns.forEach((button) => {
     button.addEventListener("click", () => addLevelNode(Number(button.dataset.addLevel)));
   });
+  els.assistantAddBtns.forEach((button) => {
+    button.addEventListener("click", () => addAssistantNode(button.dataset.addAssistant));
+  });
 
   els.saveInputBtn.addEventListener("click", () => {
     saveCurrentState();
   });
   els.undoInputBtn.addEventListener("click", () => {
-    els.inputText.value = savedInputText;
-    hideError();
-    updateInputAssist();
-    generate();
-    showToast("\uC800\uC7A5 \uC2DC\uC810\uC73C\uB85C \uB3CC\uC544\uAC14\uC2B5\uB2C8\uB2E4.");
+    undoLastStep();
   });
   els.sampleBtn.addEventListener("click", () => {
     openExampleState();
@@ -1698,6 +1814,7 @@ function bindEvents() {
   els.inputText.addEventListener("keydown", (event) => {
     if (event.key === "Tab") {
       event.preventDefault();
+      pushUndoState();
       handleTabIndent(event.shiftKey);
       return;
     }
@@ -1705,6 +1822,10 @@ function bindEvents() {
       event.preventDefault();
       generate();
     }
+  });
+
+  els.inputText.addEventListener("beforeinput", () => {
+    pushUndoState();
   });
 
   els.inputText.addEventListener("input", () => {
@@ -1743,10 +1864,7 @@ function bindEvents() {
     saveCurrentState();
   });
   els.undoThemeBtn.addEventListener("click", () => {
-    applyThemeState(savedTheme);
-    initThemeControls();
-    applyTheme(true);
-    showToast("\uC800\uC7A5\uB41C \uD654\uBA74 \uCEE4\uC2A4\uD140\uC73C\uB85C \uB3CC\uC544\uAC14\uC2B5\uB2C8\uB2E4.");
+    undoLastStep();
   });
   els.themeResetBtn.addEventListener("click", resetTheme);
 
@@ -1820,6 +1938,7 @@ function saveNodeEditor() {
     els.nodeNameInput.focus();
     return;
   }
+  pushUndoState();
   node.name = nextName;
   node.title = els.nodeTitleInput.value.trim();
   node.person = els.nodePersonInput.value.trim();
@@ -1834,9 +1953,96 @@ function saveNodeEditor() {
 }
 
 function handleChartNodeActivation(target) {
+  if (suppressNodeClick) {
+    return;
+  }
   const nodeGroup = target.closest(".org-node");
   if (!nodeGroup || !els.chartSvg.contains(nodeGroup)) return;
   openNodeEditor(nodeGroup.dataset.nodeId);
+}
+
+function getSvgPoint(event) {
+  const rect = els.chartSvg.getBoundingClientRect();
+  const scaleX = currentLayout.width / Math.max(1, rect.width);
+  const scaleY = currentLayout.height / Math.max(1, rect.height);
+  return {
+    x: (event.clientX - rect.left) * scaleX,
+    y: (event.clientY - rect.top) * scaleY
+  };
+}
+
+function redrawChartWithoutLayout() {
+  if (!currentTree) return;
+  const bounds = getTreeBounds(currentTree);
+  currentLayout.width = Math.max(currentLayout.width, bounds.maxX + layout.outerPadding);
+  currentLayout.height = Math.max(currentLayout.height, bounds.maxY + layout.outerPadding);
+  els.chartSvg.setAttribute("width", currentLayout.width);
+  els.chartSvg.setAttribute("height", currentLayout.height);
+  els.chartSvg.setAttribute("viewBox", "0 0 " + currentLayout.width + " " + currentLayout.height);
+  els.chartSvg.innerHTML = buildChartSvg(currentTree, currentLayout.width, currentLayout.height);
+  applyZoom(false);
+}
+
+function bindNodeDrag() {
+  els.chartSvg.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || !currentTree) return;
+    const nodeGroup = event.target.closest(".org-node");
+    if (!nodeGroup || !els.chartSvg.contains(nodeGroup)) return;
+    const node = findNodeByEditId(currentTree, nodeGroup.dataset.nodeId);
+    if (!node) return;
+
+    const startPoint = getSvgPoint(event);
+    nodeDragState = {
+      node,
+      pointerId: event.pointerId,
+      startX: startPoint.x,
+      startY: startPoint.y,
+      lastDx: 0,
+      lastDy: 0,
+      hasMoved: false
+    };
+    event.preventDefault();
+    event.stopPropagation();
+    els.chartPanel.classList.add("is-node-dragging");
+    document.addEventListener("pointermove", moveNodeDrag);
+    document.addEventListener("pointerup", finishNodeDrag);
+    document.addEventListener("pointercancel", finishNodeDrag);
+  });
+}
+
+function moveNodeDrag(event) {
+  if (!nodeDragState || event.pointerId !== nodeDragState.pointerId) return;
+  const point = getSvgPoint(event);
+  const dx = point.x - nodeDragState.startX;
+  const dy = point.y - nodeDragState.startY;
+  if (!nodeDragState.hasMoved && Math.hypot(dx, dy) <= 3) {
+    return;
+  }
+  if (!nodeDragState.hasMoved) {
+    pushUndoState();
+    nodeDragState.hasMoved = true;
+  }
+  shiftSingleNode(nodeDragState.node, dx - nodeDragState.lastDx, dy - nodeDragState.lastDy);
+  nodeDragState.lastDx = dx;
+  nodeDragState.lastDy = dy;
+  redrawChartWithoutLayout();
+}
+
+function finishNodeDrag(event) {
+  if (!nodeDragState || event.pointerId !== nodeDragState.pointerId) return;
+  const moved = nodeDragState.hasMoved;
+  nodeDragState = null;
+  els.chartPanel.classList.remove("is-node-dragging");
+  document.removeEventListener("pointermove", moveNodeDrag);
+  document.removeEventListener("pointerup", finishNodeDrag);
+  document.removeEventListener("pointercancel", finishNodeDrag);
+  if (moved) {
+    suppressNodeClick = true;
+    showToast("\uC140 \uC704\uCE58\uB97C \uC62E\uACBC\uC2B5\uB2C8\uB2E4.");
+    setTimeout(() => {
+      suppressNodeClick = false;
+    }, 220);
+  }
 }
 
 function getIndentReadyText() {
@@ -1868,7 +2074,63 @@ function buildLevelNodeText(depth, lines) {
   return "\uB808\uBCA8" + (depth + 1) + " \uC870\uC9C1 " + number + " | \uC9C1\uAE09 | \uC131\uBA85";
 }
 
+function isAssistantLine(line) {
+  return /^[+-]\s+/.test(line.trim());
+}
+
+function getCurrentLineIndex(text) {
+  const caret = Math.max(0, Math.min(text.length, els.inputText.selectionStart || text.length));
+  return text.slice(0, caret).split("\n").length - 1;
+}
+
+function findAssistantParentIndex(lines, text) {
+  if (!lines.length) {
+    return -1;
+  }
+  const selectedLine = Math.min(lines.length - 1, getCurrentLineIndex(text));
+  for (let index = selectedLine; index >= 0; index -= 1) {
+    if (lines[index].trim() && !isAssistantLine(lines[index])) {
+      return index;
+    }
+  }
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    if (lines[index].trim() && !isAssistantLine(lines[index])) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function findSubtreeEndIndex(lines, parentIndex, parentDepth) {
+  let insertIndex = parentIndex + 1;
+  while (insertIndex < lines.length) {
+    const line = lines[insertIndex];
+    if (line.trim() && getLineDepth(line) <= parentDepth) {
+      break;
+    }
+    insertIndex += 1;
+  }
+  return insertIndex;
+}
+
+function getLineStartOffset(lines, lineIndex) {
+  if (lineIndex <= 0) {
+    return 0;
+  }
+  return lines.slice(0, lineIndex).join("\n").length + 1;
+}
+
+function countAssistantLines(lines, marker) {
+  return lines.filter((line) => line.trim().startsWith(marker)).length;
+}
+
+function buildAssistantNodeText(marker, lines) {
+  const number = countAssistantLines(lines, marker) + 1;
+  return marker + "\uBCF4\uC870 \uC870\uC9C1 " + number + " | \uC9C1\uAE09 | \uC131\uBA85";
+}
+
 function addLevelNode(level) {
+  pushUndoState();
   const targetDepth = Math.max(0, Math.min(3, Math.floor(level)));
   setFormat("indent");
   const baseText = getIndentReadyText();
@@ -1905,6 +2167,40 @@ function addLevelNode(level) {
   updateInputAssist();
   generate();
   showToast("L" + (targetDepth + 1) + " \uC140\uC744 \uCD94\uAC00\uD588\uC2B5\uB2C8\uB2E4.");
+}
+
+function addAssistantNode(direction) {
+  pushUndoState();
+  const isRight = direction === "right";
+  const marker = isRight ? "- " : "+ ";
+  setFormat("indent");
+  const baseText = getIndentReadyText();
+  const lines = baseText ? baseText.split("\n") : [];
+
+  let parentIndex = findAssistantParentIndex(lines, baseText);
+  if (parentIndex === -1) {
+    lines.push(buildLevelNodeText(0, lines));
+    parentIndex = 0;
+  }
+
+  const parentDepth = getLineDepth(lines[parentIndex]);
+  const assistantDepth = parentDepth + 1;
+  const insertIndex = findSubtreeEndIndex(lines, parentIndex, parentDepth);
+  const assistantText = buildAssistantNodeText(marker, lines);
+  const addedLine = "  ".repeat(assistantDepth) + assistantText;
+  lines.splice(insertIndex, 0, addedLine);
+  els.inputText.value = lines.join("\n");
+
+  const addedLineStart = getLineStartOffset(lines, insertIndex);
+  const markerStart = addedLineStart + "  ".repeat(assistantDepth).length + marker.length;
+  const addedNameEnd = addedLine.indexOf(" | ");
+  els.inputText.focus();
+  els.inputText.selectionStart = markerStart;
+  els.inputText.selectionEnd = Math.min(els.inputText.value.length, addedLineStart + (addedNameEnd > -1 ? addedNameEnd : addedLine.length));
+  hideError();
+  updateInputAssist();
+  generate();
+  showToast((isRight ? "\uC624\uB978\uCABD" : "\uC67C\uCABD") + " \uBCF4\uC870 \uC140\uC744 \uCD94\uAC00\uD588\uC2B5\uB2C8\uB2E4.");
 }
 
 function toggleSidebarWidth() {
@@ -1958,6 +2254,13 @@ function bindCanvasDrag() {
 }
 
 function onThemeInput() {
+  if (!themeUndoArmed) {
+    pushUndoState();
+    themeUndoArmed = true;
+    setTimeout(() => {
+      themeUndoArmed = false;
+    }, 600);
+  }
   theme.fontKey = els.fontSelect.value;
   theme.accent = els.accentColor.value;
   theme.canvas = els.canvasColor.value;
@@ -1979,6 +2282,7 @@ function onThemeInput() {
 }
 
 function resetTheme() {
+  pushUndoState();
   Object.assign(theme, DEFAULT_THEME);
   initThemeControls();
   applyTheme(true);
