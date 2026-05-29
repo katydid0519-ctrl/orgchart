@@ -1283,7 +1283,7 @@ const DEFAULT_EXAMPLE_STATE = {
 
 buildFormatButtons();
 setFormat("indent");
-els.inputText.value = FORMAT_OPTIONS.indent.example;
+els.inputText.value = "";
 loadSavedState();
 savedInputText = els.inputText.value;
 savedTheme = cloneTheme(theme);
@@ -1303,8 +1303,8 @@ function buildFormatButtons() {
     button.innerHTML = "<strong>" + escapeHtml(value.label) + "</strong><span>" + escapeHtml(value.description) + "</span>";
     button.addEventListener("click", () => {
       setFormat(key);
-      els.inputText.value = value.example;
       hideError();
+      updateInputAssist();
       generate();
     });
     els.formatButtons.appendChild(button);
@@ -2100,8 +2100,19 @@ function generate() {
     els.smartArtPreview.value = toSmartArtText(currentTree);
   } catch (error) {
     currentTree = null;
+    currentLayout = { width: 0, height: 0 };
+    els.countValue.textContent = "0";
+    els.depthValue.textContent = "0";
+    els.toolbarNote.textContent = "";
+    els.emptyState.style.display = "flex";
+    els.chartFrame.style.display = "none";
+    els.chartSvg.innerHTML = "";
     els.smartArtPreview.value = TEXT.smartPreviewEmpty;
-    showError(error.message);
+    if (error.message === TEXT.emptyInput) {
+      hideError();
+    } else {
+      showError(error.message);
+    }
   }
 }
 
