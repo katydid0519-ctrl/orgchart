@@ -1,8 +1,9 @@
-const CACHE_NAME = "orgchart-pwa-v3";
+const CACHE_NAME = "orgchart-pwa-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.json",
+  "./example-state.json",
   "./icons/favicon-32.png",
   "./icons/apple-touch-icon.png",
   "./icons/icon-192.png",

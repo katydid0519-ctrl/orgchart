@@ -523,6 +523,9 @@ button{white-space:nowrap;}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 16px 16px;}
 .modal-actions .primary-btn,.modal-actions .secondary-btn{flex:0 0 auto;}
 .manual-list{margin:0;padding-left:18px;font-size:13px;line-height:1.8;color:var(--text);}
+.welcome-copy{margin:0;font-size:13px;line-height:1.65;color:var(--text);}
+.welcome-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
+.welcome-check input{width:14px;height:14px;}
 .spin{
   width:14px;height:14px;border-radius:50%;border:2px solid rgba(36,87,214,.2);border-top-color:var(--accent);
   display:inline-block;animation:spin .8s linear infinite;
@@ -881,6 +884,26 @@ button{white-space:nowrap;}
   </div>
 </div>
 
+<div class="modal-backdrop" id="welcomeModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+    <div class="modal-head">
+      <h3 id="welcomeTitle">조직도 생성기</h3>
+      <button class="modal-close" type="button" id="welcomeCloseBtn">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="welcome-copy">조직 구조를 입력하면 화면 조직도, SmartArt 텍스트, Excel 표 데이터, PNG 이미지로 바로 변환할 수 있습니다. 준비된 예시 파일로 먼저 화면과 커스텀 옵션을 확인해볼 수 있습니다.</p>
+      <label class="welcome-check">
+        <input type="checkbox" id="welcomeDontShow">
+        <span>다시 보지 않음</span>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary-btn" type="button" id="welcomeSkipBtn">나중에</button>
+      <button class="primary-btn" type="button" id="welcomeOpenBtn">예시 파일 열기</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <script>
 const TEXT = {
@@ -1090,6 +1113,11 @@ const els = {
   smartArtPreview: document.getElementById("smartArtPreview"),
   manualModal: document.getElementById("manualModal"),
   backupModal: document.getElementById("backupModal"),
+  welcomeModal: document.getElementById("welcomeModal"),
+  welcomeCloseBtn: document.getElementById("welcomeCloseBtn"),
+  welcomeSkipBtn: document.getElementById("welcomeSkipBtn"),
+  welcomeOpenBtn: document.getElementById("welcomeOpenBtn"),
+  welcomeDontShow: document.getElementById("welcomeDontShow"),
   backupText: document.getElementById("backupText"),
   makeBackupBtn: document.getElementById("makeBackupBtn"),
   restoreBackupBtn: document.getElementById("restoreBackupBtn"),
@@ -1228,6 +1256,30 @@ const theme = { ...DEFAULT_THEME };
 const layout = new TreeLayout();
 const APP_STORAGE_KEY = "orgChartAppState";
 const BACKUP_STORAGE_KEY = "orgChartTextBackup";
+const WELCOME_STORAGE_KEY = "orgChartWelcomeHidden";
+const EXAMPLE_STATE_URL = "./example-state.json";
+const DEFAULT_EXAMPLE_STATE = {
+  "version": 2,
+  "inputText": "CEO | 회장 | \n  + 전략자문 |  | \n  상근고문 |  | \n  신재생사업 |  | \n    Global Sourcing본부 | 담당 | \n    Eco-AI Mgmt | 담당 | \n  신사업부문 |  | \n  경영기획실 |  | \n  비전본부 | 상무 | \n  전기기계본부 | 부사장 | \n    비전기획팀 | 부장 | \n  경영기획실 | 상무 | \n    경영기획팀 | 이사 | \n    회계팀 | 차장 | \n    IT전략팀 | 담당 | \n  경영지원실 | 부사장 | \n    인사팀 | 과장 | \n    총무팀 | 부장 | \n  ESG팀 | 겸임 | \n  경영총괄 | 전무 | ",
+  "theme": {
+    "fontKey": "malgun",
+    "accent": "#2457d6",
+    "canvas": "#ffffff",
+    "connector": "#c7beae",
+    "root": "#253247",
+    "assistant": "#253247",
+    "mid": "#e9efff",
+    "leaf": "#eefaf1",
+    "radius": 12,
+    "gapX": 28,
+    "gapY": 86,
+    "assistantX": 90,
+    "assistantY": 0,
+    "levelOneX": 0,
+    "branchGapX": [28, 28, 28, 28],
+    "branchJointY": [20, 0, 0, 0]
+  }
+};
 
 buildFormatButtons();
 setFormat("indent");
@@ -1239,6 +1291,7 @@ initThemeControls();
 normalizeAssistantControlLabels();
 bindEvents();
 generate();
+queueWelcomePrompt();
 
 function buildFormatButtons() {
   els.formatButtons.innerHTML = "";
@@ -1317,17 +1370,59 @@ function buildBackupPayload() {
 function restoreBackupPayload(payload) {
   try {
     const state = JSON.parse(payload);
-    if (typeof state.inputText === "string") {
-      els.inputText.value = state.inputText;
-    }
-    if (state.theme) {
-      applyThemeState(state.theme);
-    }
-    initThemeControls();
+    applyState(state);
   } catch (error) {
     // Older backups were plain text only.
     els.inputText.value = payload;
   }
+}
+
+function applyState(state) {
+  if (!state) return;
+  if (typeof state.inputText === "string") {
+    els.inputText.value = state.inputText;
+  }
+  if (state.theme) {
+    applyThemeState(state.theme);
+  }
+  initThemeControls();
+}
+
+async function loadExampleState() {
+  try {
+    const response = await fetch(EXAMPLE_STATE_URL, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("example load failed");
+    }
+    return await response.json();
+  } catch (error) {
+    return DEFAULT_EXAMPLE_STATE;
+  }
+}
+
+async function openExampleState() {
+  const state = await loadExampleState();
+  applyState(state);
+  hideError();
+  updateInputAssist();
+  generate();
+  savedInputText = els.inputText.value;
+  savedTheme = cloneTheme(theme);
+  showToast("\uC608\uC2DC \uD30C\uC77C\uC744 \uC5F4\uC5C8\uC2B5\uB2C8\uB2E4.");
+}
+
+function queueWelcomePrompt() {
+  if (safeGetStorage(WELCOME_STORAGE_KEY) === "true") {
+    return;
+  }
+  window.setTimeout(() => openModal(els.welcomeModal), 240);
+}
+
+function closeWelcomeModal() {
+  if (els.welcomeDontShow.checked) {
+    safeSetStorage(WELCOME_STORAGE_KEY, "true");
+  }
+  closeModal(els.welcomeModal);
 }
 
 function safeGetStorage(key) {
@@ -1464,13 +1559,23 @@ function bindEvents() {
     closeModal(els.backupModal);
     showToast("\uBC31\uC5C5\uC744 \uBCF5\uAD6C\uD588\uC2B5\uB2C8\uB2E4.");
   });
+  els.welcomeCloseBtn.addEventListener("click", closeWelcomeModal);
+  els.welcomeSkipBtn.addEventListener("click", closeWelcomeModal);
+  els.welcomeOpenBtn.addEventListener("click", async () => {
+    await openExampleState();
+    closeWelcomeModal();
+  });
   document.querySelectorAll("[data-close-modal]").forEach((button) => {
     button.addEventListener("click", () => closeModal(button.closest(".modal-backdrop")));
   });
   document.querySelectorAll(".modal-backdrop").forEach((modal) => {
     modal.addEventListener("click", (event) => {
       if (event.target === modal) {
-        closeModal(modal);
+        if (modal === els.welcomeModal) {
+          closeWelcomeModal();
+        } else {
+          closeModal(modal);
+        }
       }
     });
   });
@@ -1478,6 +1583,7 @@ function bindEvents() {
     if (event.key === "Escape") {
       closeModal(els.manualModal);
       closeModal(els.backupModal);
+      closeWelcomeModal();
     }
   });
   bindCanvasDrag();
@@ -1493,10 +1599,7 @@ function bindEvents() {
     showToast("\uC800\uC7A5 \uC2DC\uC810\uC73C\uB85C \uB3CC\uC544\uAC14\uC2B5\uB2C8\uB2E4.");
   });
   els.sampleBtn.addEventListener("click", () => {
-    els.inputText.value = FORMAT_OPTIONS[selectedFormat].example;
-    hideError();
-    updateInputAssist();
-    generate();
+    openExampleState();
   });
 
   els.inputText.addEventListener("keydown", (event) => {

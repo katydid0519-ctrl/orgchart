@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "inputText": "CEO | 회장 | \n  + 전략자문 |  | \n  상근고문 |  | \n  신재생사업 |  | \n    Global Sourcing본부 | 담당 | \n    Eco-AI Mgmt | 담당 | \n  신사업부문 |  | \n  경영기획실 |  | \n  비전본부 | 상무 | \n  전기기계본부 | 부사장 | \n    비전기획팀 | 부장 | \n  경영기획실 | 상무 | \n    경영기획팀 | 이사 | \n    회계팀 | 차장 | \n    IT전략팀 | 담당 | \n  경영지원실 | 부사장 | \n    인사팀 | 과장 | \n    총무팀 | 부장 | \n  ESG팀 | 겸임 | \n  경영총괄 | 전무 | ",
+  "theme": {
+    "fontKey": "malgun",
+    "accent": "#2457d6",
+    "canvas": "#ffffff",
+    "connector": "#c7beae",
+    "root": "#253247",
+    "assistant": "#253247",
+    "mid": "#e9efff",
+    "leaf": "#eefaf1",
+    "radius": 12,
+    "gapX": 28,
+    "gapY": 86,
+    "assistantX": 90,
+    "assistantY": 0,
+    "levelOneX": 0,
+    "branchGapX": [
+      28,
+      28,
+      28,
+      28
+    ],
+    "branchJointY": [
+      20,
+      0,
+      0,
+      0
+    ]
+  }
+}
