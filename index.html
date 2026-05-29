@@ -195,11 +195,23 @@ button{white-space:nowrap;}
 }
 .zoom-value{width:42px;text-align:right;font-size:12px;color:var(--muted);white-space:nowrap;}
 .toolbar-actions{display:flex;flex-wrap:wrap;gap:6px;}
+.level-create-group{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px;
+  padding-right:6px;
+  margin-right:2px;
+  border-right:1px solid rgba(181,171,154,.5);
+}
 .toolbar-btn{
   min-height:30px;padding:7px 11px;background:#fff;border:1px solid rgba(181,171,154,.85);color:var(--text);
   display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;line-height:1;
 }
 .toolbar-btn strong{font-weight:700;}
+.level-add-btn{min-width:58px;justify-content:center;}
+.level-add-btn span{font-size:11px;color:var(--muted);}
+.level-add-btn:hover span{color:var(--accent);}
 .toolbar-btn.is-success{border-color:#9ad7b2;color:var(--success);background:var(--success-soft);}
 .toolbar-btn:disabled{opacity:.55;cursor:not-allowed;}
 .level-panel{
@@ -471,6 +483,9 @@ button{white-space:nowrap;}
   overflow:visible;
   max-width:none;
 }
+.org-node{cursor:pointer;outline:none;}
+.org-node:hover rect:first-child,
+.org-node:focus-visible rect:first-child{stroke:var(--accent);stroke-width:2.4;}
 .toast{
   position:fixed;right:24px;bottom:24px;padding:12px 16px;border-radius:14px;background:#1f2937;color:#fff;
   font-size:13px;line-height:1.5;box-shadow:0 18px 32px rgba(0,0,0,.18);opacity:0;transform:translateY(8px);
@@ -522,6 +537,19 @@ button{white-space:nowrap;}
 }
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 16px 16px;}
 .modal-actions .primary-btn,.modal-actions .secondary-btn{flex:0 0 auto;}
+.edit-grid{display:grid;grid-template-columns:1fr;gap:10px;}
+.edit-field{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--text);}
+.edit-field input{
+  width:100%;
+  min-height:38px;
+  border-radius:10px;
+  border:1px solid rgba(181,171,154,.75);
+  background:#fff;
+  padding:8px 10px;
+  color:var(--text);
+  outline:none;
+}
+.edit-field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(36,87,214,.12);}
 .manual-list{margin:0;padding-left:18px;font-size:13px;line-height:1.8;color:var(--text);}
 .welcome-copy{margin:0;font-size:13px;line-height:1.65;color:var(--text);}
 .welcome-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
@@ -553,6 +581,8 @@ button{white-space:nowrap;}
   .format-grid,.status-grid,.custom-grid{grid-template-columns:1fr;}
   .action-row,.toolbar-actions{flex-direction:column;}
   .toolbar-btn,.secondary-btn,.primary-btn{width:100%;justify-content:center;}
+  .level-create-group{width:100%;padding-right:0;margin-right:0;border-right:none;}
+  .level-create-group .toolbar-btn{width:auto;flex:1;min-width:0;}
   .range-field{grid-template-columns:1fr;}
 }
 </style>
@@ -649,6 +679,12 @@ button{white-space:nowrap;}
         <div class="toolbar-note" id="toolbarNote"></div>
       </div>
       <div class="toolbar-actions">
+        <div class="level-create-group" aria-label="&#47112;&#48296; &#52628;&#44032;">
+          <button class="toolbar-btn level-add-btn" type="button" data-add-level="0"><strong>L1</strong><span>&#52628;&#44032;</span></button>
+          <button class="toolbar-btn level-add-btn" type="button" data-add-level="1"><strong>L2</strong><span>&#52628;&#44032;</span></button>
+          <button class="toolbar-btn level-add-btn" type="button" data-add-level="2"><strong>L3</strong><span>&#52628;&#44032;</span></button>
+          <button class="toolbar-btn level-add-btn" type="button" data-add-level="3"><strong>L4</strong><span>&#52628;&#44032;</span></button>
+        </div>
         <button class="toolbar-btn" type="button" id="smartArtCopyBtn"><strong>SmartArt</strong></button>
         <button class="toolbar-btn" type="button" id="sheetCopyBtn"><strong>Excel</strong></button>
         <button class="toolbar-btn" type="button" id="imageCopyBtn"><strong>&#51060;&#48120;&#51648;</strong></button>
@@ -884,6 +920,35 @@ button{white-space:nowrap;}
   </div>
 </div>
 
+<div class="modal-backdrop" id="nodeEditModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="nodeEditTitle">
+    <div class="modal-head">
+      <h3 id="nodeEditTitle">&#49472; &#49688;&#51221;</h3>
+      <button class="modal-close" type="button" data-close-modal>&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="edit-grid">
+        <label class="edit-field">
+          <span>&#51312;&#51649;&#47749;</span>
+          <input type="text" id="nodeNameInput" autocomplete="off">
+        </label>
+        <label class="edit-field">
+          <span>&#51649;&#44553;</span>
+          <input type="text" id="nodeTitleInput" autocomplete="off">
+        </label>
+        <label class="edit-field">
+          <span>&#49457;&#47749;</span>
+          <input type="text" id="nodePersonInput" autocomplete="off">
+        </label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary-btn" type="button" id="nodeEditCancelBtn">&#52712;&#49548;</button>
+      <button class="primary-btn" type="button" id="nodeEditSaveBtn">&#51201;&#50857;</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="welcomeModal" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
     <div class="modal-head">
@@ -1065,6 +1130,7 @@ const els = {
   chartPanel: document.querySelector(".canvas-panel"),
   chartFrame: document.getElementById("chartFrame"),
   chartSvg: document.getElementById("chartSvg"),
+  levelAddBtns: Array.from(document.querySelectorAll("[data-add-level]")),
   smartArtCopyBtn: document.getElementById("smartArtCopyBtn"),
   sheetCopyBtn: document.getElementById("sheetCopyBtn"),
   imageCopyBtn: document.getElementById("imageCopyBtn"),
@@ -1118,6 +1184,12 @@ const els = {
   welcomeSkipBtn: document.getElementById("welcomeSkipBtn"),
   welcomeOpenBtn: document.getElementById("welcomeOpenBtn"),
   welcomeDontShow: document.getElementById("welcomeDontShow"),
+  nodeEditModal: document.getElementById("nodeEditModal"),
+  nodeNameInput: document.getElementById("nodeNameInput"),
+  nodeTitleInput: document.getElementById("nodeTitleInput"),
+  nodePersonInput: document.getElementById("nodePersonInput"),
+  nodeEditCancelBtn: document.getElementById("nodeEditCancelBtn"),
+  nodeEditSaveBtn: document.getElementById("nodeEditSaveBtn"),
   backupText: document.getElementById("backupText"),
   makeBackupBtn: document.getElementById("makeBackupBtn"),
   restoreBackupBtn: document.getElementById("restoreBackupBtn"),
@@ -1251,6 +1323,7 @@ let currentLayout = { width: 0, height: 0 };
 let savedInputText = "";
 let savedTheme = null;
 let inputRenderTimer = null;
+let editingNodeId = null;
 const activePreviewLevels = new Set([0, 1, 2, 3]);
 const theme = { ...DEFAULT_THEME };
 const layout = new TreeLayout();
@@ -1565,6 +1638,16 @@ function bindEvents() {
     await openExampleState();
     closeWelcomeModal();
   });
+  els.nodeEditCancelBtn.addEventListener("click", () => closeModal(els.nodeEditModal));
+  els.nodeEditSaveBtn.addEventListener("click", saveNodeEditor);
+  [els.nodeNameInput, els.nodeTitleInput, els.nodePersonInput].forEach((input) => {
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveNodeEditor();
+      }
+    });
+  });
   document.querySelectorAll("[data-close-modal]").forEach((button) => {
     button.addEventListener("click", () => closeModal(button.closest(".modal-backdrop")));
   });
@@ -1583,10 +1666,20 @@ function bindEvents() {
     if (event.key === "Escape") {
       closeModal(els.manualModal);
       closeModal(els.backupModal);
+      closeModal(els.nodeEditModal);
       closeWelcomeModal();
     }
   });
   bindCanvasDrag();
+  els.chartSvg.addEventListener("click", (event) => handleChartNodeActivation(event.target));
+  els.chartSvg.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    handleChartNodeActivation(event.target);
+  });
+  els.levelAddBtns.forEach((button) => {
+    button.addEventListener("click", () => addLevelNode(Number(button.dataset.addLevel)));
+  });
 
   els.saveInputBtn.addEventListener("click", () => {
     saveCurrentState();
@@ -1679,6 +1772,139 @@ function closeModal(modal) {
   if (!modal) return;
   modal.classList.remove("show");
   modal.setAttribute("aria-hidden", "true");
+  if (modal === els.nodeEditModal) {
+    editingNodeId = null;
+  }
+}
+
+function getNodeLineText(node) {
+  return [node.name, node.title || "", node.person || ""].join(" | ");
+}
+
+function serializeTreeToIndent(root) {
+  const lines = [];
+  function addNode(node, depth) {
+    lines.push("  ".repeat(depth) + getNodeLineText(node));
+    node.assistants.forEach((assistant) => {
+      const marker = assistant.assistantSide === "right" ? "- " : "+ ";
+      lines.push("  ".repeat(depth + 1) + marker + getNodeLineText(assistant));
+    });
+    node.children.forEach((child) => addNode(child, depth + 1));
+  }
+  addNode(root, 0);
+  return lines.join("\n");
+}
+
+function openNodeEditor(editId) {
+  if (!currentTree || !editId) return;
+  const node = findNodeByEditId(currentTree, editId);
+  if (!node) return;
+  editingNodeId = editId;
+  els.nodeNameInput.value = node.name || "";
+  els.nodeTitleInput.value = node.title || "";
+  els.nodePersonInput.value = node.person || "";
+  openModal(els.nodeEditModal);
+  setTimeout(() => {
+    els.nodeNameInput.focus();
+    els.nodeNameInput.select();
+  }, 0);
+}
+
+function saveNodeEditor() {
+  if (!currentTree || !editingNodeId) return;
+  const node = findNodeByEditId(currentTree, editingNodeId);
+  if (!node) return;
+  const nextName = els.nodeNameInput.value.trim();
+  if (!nextName) {
+    showToast("\uC870\uC9C1\uBA85\uC744 \uC785\uB825\uD574 \uC8FC\uC138\uC694.");
+    els.nodeNameInput.focus();
+    return;
+  }
+  node.name = nextName;
+  node.title = els.nodeTitleInput.value.trim();
+  node.person = els.nodePersonInput.value.trim();
+  setFormat("indent");
+  currentFormat = "indent";
+  els.inputText.value = serializeTreeToIndent(currentTree);
+  closeModal(els.nodeEditModal);
+  hideError();
+  updateInputAssist();
+  generate();
+  showToast("\uC140\uC744 \uC218\uC815\uD588\uC2B5\uB2C8\uB2E4.");
+}
+
+function handleChartNodeActivation(target) {
+  const nodeGroup = target.closest(".org-node");
+  if (!nodeGroup || !els.chartSvg.contains(nodeGroup)) return;
+  openNodeEditor(nodeGroup.dataset.nodeId);
+}
+
+function getIndentReadyText() {
+  const rawText = els.inputText.value.replace(/\r\n?/g, "\n").trimEnd();
+  if (!rawText.trim()) {
+    return "";
+  }
+  try {
+    const parsed = parseInput(rawText);
+    if (parsed.format !== "indent") {
+      return serializeTreeToIndent(parsed.tree);
+    }
+  } catch (error) {
+    return rawText;
+  }
+  return rawText;
+}
+
+function getLineDepth(line) {
+  return Math.max(0, Math.floor(calculateIndentWidth(line) / 2));
+}
+
+function countLevelLines(lines, depth) {
+  return lines.filter((line) => line.trim() && getLineDepth(line) === depth).length;
+}
+
+function buildLevelNodeText(depth, lines) {
+  const number = countLevelLines(lines, depth) + 1;
+  return "\uB808\uBCA8" + (depth + 1) + " \uC870\uC9C1 " + number + " | \uC9C1\uAE09 | \uC131\uBA85";
+}
+
+function addLevelNode(level) {
+  const targetDepth = Math.max(0, Math.min(3, Math.floor(level)));
+  setFormat("indent");
+  const baseText = getIndentReadyText();
+  const lines = baseText ? baseText.split("\n") : [];
+  let lastDepth = -1;
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    if (lines[index].trim()) {
+      lastDepth = getLineDepth(lines[index]);
+      break;
+    }
+  }
+
+  const addedLines = [];
+  if (!lines.length) {
+    for (let depth = 0; depth <= targetDepth; depth += 1) {
+      addedLines.push("  ".repeat(depth) + buildLevelNodeText(depth, lines.concat(addedLines)));
+    }
+  } else {
+    for (let depth = lastDepth + 1; depth < targetDepth; depth += 1) {
+      addedLines.push("  ".repeat(depth) + buildLevelNodeText(depth, lines.concat(addedLines)));
+    }
+    addedLines.push("  ".repeat(targetDepth) + buildLevelNodeText(targetDepth, lines.concat(addedLines)));
+  }
+
+  const nextLines = lines.concat(addedLines);
+  const addedLine = addedLines[addedLines.length - 1];
+  els.inputText.value = nextLines.join("\n");
+  const addedLineStart = els.inputText.value.length - addedLine.length;
+  const addedNameEnd = addedLine.indexOf(" | ");
+  els.inputText.focus();
+  els.inputText.selectionStart = addedLineStart + "  ".repeat(targetDepth).length;
+  els.inputText.selectionEnd = Math.min(els.inputText.value.length, addedLineStart + (addedNameEnd > -1 ? addedNameEnd : addedLine.length));
+  hideError();
+  updateInputAssist();
+  generate();
+  showToast("L" + (targetDepth + 1) + " \uC140\uC744 \uCD94\uAC00\uD588\uC2B5\uB2C8\uB2E4.");
 }
 
 function toggleSidebarWidth() {
@@ -1701,6 +1927,7 @@ function bindCanvasDrag() {
 
   els.chartPanel.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
+    if (event.target.closest(".org-node")) return;
     isDragging = true;
     startX = event.clientX;
     startY = event.clientY;
@@ -1984,6 +2211,28 @@ function applyNodeMeta(target, source) {
   }
 }
 
+function assignNodeEditIds(root) {
+  let nextId = 1;
+  traverseVisibleNodes(root, (node) => {
+    if (node.synthetic) {
+      node.editId = "";
+      return;
+    }
+    node.editId = "node-" + nextId;
+    nextId += 1;
+  });
+}
+
+function findNodeByEditId(root, editId) {
+  let match = null;
+  traverseVisibleNodes(root, (node) => {
+    if (!match && node.editId === editId) {
+      match = node;
+    }
+  });
+  return match;
+}
+
 function mergeRootChildren(children) {
   if (!children.length) {
     throw new Error(TEXT.parseFail);
@@ -2090,6 +2339,7 @@ function generate() {
     const parsed = parseInput(els.inputText.value);
     currentTree = parsed.tree;
     currentFormat = parsed.format;
+    assignNodeEditIds(currentTree);
     els.countValue.textContent = String(countNodes(currentTree));
     els.depthValue.textContent = getTreeDepth(currentTree) + TEXT.step;
     els.formatValue.textContent = FORMAT_OPTIONS[currentFormat].label;
@@ -2166,6 +2416,9 @@ function buildChartSvg(tree, width, height) {
 
 function buildNodeMarkup(node) {
   const style = node.assistant ? getAssistantStyle() : getLevelStyle(node.depth);
+  const editAttrs = node.editId
+    ? " class=\"org-node\" tabindex=\"0\" role=\"button\" data-node-id=\"" + escapeXml(node.editId) + "\" aria-label=\"" + escapeXml(getNodeDisplayLabel(node)) + "\""
+    : "";
   const outer = "<rect x=\"" + round(node.x) + "\" y=\"" + round(node.y) + "\" width=\"" + round(node.width) + "\" height=\"" + node.height + "\" rx=\"" + theme.radius + "\" fill=\"#ffffff\" stroke=\"" + style.stroke + "\" stroke-width=\"1.5\" />";
   const top = "<path d=\"" + topBandPath(node.x, node.y, node.width, layout.headerHeight, theme.radius) + "\" fill=\"" + style.fill + "\" stroke=\"" + style.stroke + "\" stroke-width=\"1.5\" />";
   const dividerY = node.y + layout.headerHeight;
@@ -2175,7 +2428,7 @@ function buildNodeMarkup(node) {
   const headerText = "<text x=\"" + round(node.centerX) + "\" y=\"" + round(node.y + layout.headerHeight / 2 + 4) + "\" text-anchor=\"middle\" font-size=\"" + (node.depth === 0 ? 14 : 13) + "\" font-weight=\"700\" fill=\"" + style.text + "\" font-family=\"" + escapeXml(FONT_PRESETS[theme.fontKey]) + "\">" + escapeXml(node.name) + "</text>";
   const leftText = "<text x=\"" + round(node.x + node.width / 4) + "\" y=\"" + round(node.y + layout.headerHeight + layout.detailHeight / 2 + 4) + "\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"600\" fill=\"#1f2937\" font-family=\"" + escapeXml(FONT_PRESETS[theme.fontKey]) + "\">" + escapeXml(node.title || "") + "</text>";
   const rightText = "<text x=\"" + round(node.x + node.width * 0.75) + "\" y=\"" + round(node.y + layout.headerHeight + layout.detailHeight / 2 + 4) + "\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"600\" fill=\"#1f2937\" font-family=\"" + escapeXml(FONT_PRESETS[theme.fontKey]) + "\">" + escapeXml(node.person || "") + "</text>";
-  return "<g>" + outer + top + dividers + headerText + leftText + rightText + "</g>";
+  return "<g" + editAttrs + ">" + outer + top + dividers + headerText + leftText + rightText + "</g>";
 }
 
 function traverseTree(node, callback) {
