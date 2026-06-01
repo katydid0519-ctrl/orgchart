@@ -1,6 +1,7 @@
 {
   "name": "조직도 생성기",
   "short_name": "조직도",
+  "id": "./",
   "description": "조직 구조를 입력해 SmartArt, Excel, PNG로 바로 내보낼 수 있는 조직도 생성기",
   "start_url": "./index.html",
   "scope": "./",
@@ -9,6 +10,8 @@
   "theme_color": "#2457d6",
   "lang": "ko-KR",
   "orientation": "any",
+  "categories": ["business", "productivity", "utilities"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "./icons/icon-192.png",
@@ -21,6 +24,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

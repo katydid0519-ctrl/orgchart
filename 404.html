@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>조직도 생성기</title>
+<script>
+(function () {
+  var segments = location.pathname.split("/").filter(Boolean);
+  var base = segments[0] === "orgchart" ? "/orgchart/" : "/";
+  location.replace(base + "index.html" + location.search + location.hash);
+}());
+</script>
+</head>
+<body>
+<p>조직도 생성기로 이동하는 중입니다. 자동으로 이동하지 않으면 <a href="./index.html">여기를 눌러주세요.</a></p>
+</body>
+</html>
